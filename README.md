@@ -11,6 +11,9 @@ Custom Home Assistant add-ons by CJ.
 
 ## Apps
 
+### openHASP Designer
+Visual drag-and-drop screen designer for openHASP panels (like the T3E 480x480). Design pages with buttons, labels, sliders, arcs, gauges, and more — then export to JSONL for your device. Supports multi-page layouts, import/export, and save/load within the add-on.
+
 ### Config Viewer
 A simple add-on with 3 configurable text inputs displayed in a sidebar panel. Good as a reference/template for building new add-ons.
 

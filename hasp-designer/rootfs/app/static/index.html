@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>openHASP Designer</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg: #1a1a2e; --surface: #16213e; --surface2: #0f3460;
+  --accent: #03a9f4; --accent2: #e94560; --text: #e1e1e1;
+  --text-dim: #8892a4; --border: #2a2a4a; --canvas-bg: #000;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+/* Toolbar left */
+.toolbar { width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow-y: auto; }
+.toolbar h2 { padding: 16px; font-size: 14px; color: var(--accent); text-transform: uppercase;
+  letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+.tool-section { padding: 8px 12px; }
+.tool-section h3 { font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+  margin-bottom: 6px; letter-spacing: 0.5px; }
+.tool-btn { display: block; width: 100%; padding: 8px 12px; margin-bottom: 4px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 13px; cursor: grab; text-align: left; transition: all 0.15s; }
+.tool-btn:hover { border-color: var(--accent); background: rgba(3,169,244,0.1); }
+.tool-btn:active { cursor: grabbing; }
+.tool-btn .icon { margin-right: 6px; }
+
+/* Pages bar */
+.pages-bar { display: flex; align-items: center; gap: 4px; padding: 8px 12px;
+  background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.page-tab { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-dim); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+.page-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.page-tab:hover:not(.active) { border-color: var(--accent); }
+.add-page-btn { padding: 6px 10px; border-radius: 6px; border: 1px dashed var(--border);
+  background: transparent; color: var(--text-dim); font-size: 12px; cursor: pointer; }
+.add-page-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Canvas area */
+.canvas-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.canvas-wrapper { flex: 1; display: flex; justify-content: center; align-items: center;
+  overflow: auto; padding: 20px; }
+.canvas { position: relative; background: var(--canvas-bg); border: 2px solid var(--border);
+  border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.canvas-grid { position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 20px 20px; }
+
+/* Objects on canvas */
+.hasp-obj { position: absolute; border: 1px solid rgba(255,255,255,0.15); cursor: move;
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+  user-select: none; transition: box-shadow 0.1s; border-radius: 4px; overflow: hidden; }
+.hasp-obj:hover { box-shadow: 0 0 0 1px var(--accent); z-index: 10; }
+.hasp-obj.selected { box-shadow: 0 0 0 2px var(--accent); z-index: 20; }
+.hasp-obj .resize-handle { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px;
+  cursor: se-resize; background: var(--accent); opacity: 0; border-radius: 2px 0 4px 0; }
+.hasp-obj.selected .resize-handle { opacity: 0.8; }
+
+/* Properties panel */
+.props-panel { width: 280px; background: var(--surface); border-left: 1px solid var(--border);
+  overflow-y: auto; display: flex; flex-direction: column; }
+.props-panel h2 { padding: 16px; font-size: 14px; color: var(--accent); text-transform: uppercase;
+  letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+.props-empty { padding: 20px; color: var(--text-dim); font-size: 13px; text-align: center; }
+.prop-group { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.prop-group h3 { font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+  margin-bottom: 8px; letter-spacing: 0.5px; }
+.prop-row { display: flex; align-items: center; margin-bottom: 6px; gap: 8px; }
+.prop-row label { font-size: 12px; color: var(--text-dim); width: 50px; flex-shrink: 0; }
+.prop-row input, .prop-row select { flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 12px; }
+.prop-row input:focus, .prop-row select:focus { border-color: var(--accent); outline: none; }
+.prop-row input[type="color"] { padding: 2px; height: 28px; cursor: pointer; }
+
+/* Action bar */
+.action-bar { display: flex; gap: 6px; padding: 8px 12px; background: var(--surface);
+  border-top: 1px solid var(--border); flex-shrink: 0; }
+.action-btn { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+.action-btn:hover { border-color: var(--accent); }
+.action-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.action-btn.primary:hover { background: #0288d1; }
+.action-btn.danger { border-color: var(--accent2); color: var(--accent2); }
+.action-btn.danger:hover { background: rgba(233,69,96,0.15); }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
+  align-items: center; justify-content: center; z-index: 1000; display: none; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.modal h2 { font-size: 16px; color: var(--accent); margin-bottom: 16px; }
+.modal textarea { width: 100%; min-height: 300px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px; color: var(--text); font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px; resize: vertical; }
+.modal textarea:focus { border-color: var(--accent); outline: none; }
+.modal-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+
+/* Save/Load bar */
+.file-bar { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border); align-items: center; }
+.file-bar input { flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 12px; }
+.file-bar select { background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- Toolbox -->
+<div class="toolbar">
+  <h2>🎨 openHASP</h2>
+  <div class="tool-section">
+    <h3>Display</h3>
+    <button class="tool-btn" draggable="true" data-type="label"><span class="icon">🏷️</span> Label</button>
+    <button class="tool-btn" draggable="true" data-type="btn"><span class="icon">🔘</span> Button</button>
+    <button class="tool-btn" draggable="true" data-type="img"><span class="icon">🖼️</span> Image</button>
+    <button class="tool-btn" draggable="true" data-type="line"><span class="icon">📏</span> Line</button>
+  </div>
+  <div class="tool-section">
+    <h3>Controls</h3>
+    <button class="tool-btn" draggable="true" data-type="switch"><span class="icon">🔀</span> Switch</button>
+    <button class="tool-btn" draggable="true" data-type="slider"><span class="icon">🎚️</span> Slider</button>
+    <button class="tool-btn" draggable="true" data-type="dropdown"><span class="icon">📋</span> Dropdown</button>
+    <button class="tool-btn" draggable="true" data-type="checkbox"><span class="icon">☑️</span> Checkbox</button>
+    <button class="tool-btn" draggable="true" data-type="btnmatrix"><span class="icon">⌨️</span> Button Matrix</button>
+  </div>
+  <div class="tool-section">
+    <h3>Indicators</h3>
+    <button class="tool-btn" draggable="true" data-type="arc"><span class="icon">🔄</span> Arc</button>
+    <button class="tool-btn" draggable="true" data-type="gauge"><span class="icon">🎯</span> Gauge</button>
+    <button class="tool-btn" draggable="true" data-type="bar"><span class="icon">📊</span> Bar</button>
+    <button class="tool-btn" draggable="true" data-type="led"><span class="icon">💡</span> LED</button>
+    <button class="tool-btn" draggable="true" data-type="spinner"><span class="icon">⏳</span> Spinner</button>
+  </div>
+  <div class="tool-section">
+    <h3>Layout</h3>
+    <button class="tool-btn" draggable="true" data-type="obj"><span class="icon">⬜</span> Panel / Container</button>
+    <button class="tool-btn" draggable="true" data-type="tabview"><span class="icon">📑</span> Tab View</button>
+  </div>
+</div>
+
+<!-- Main area -->
+<div class="canvas-area">
+  <!-- File bar -->
+  <div class="file-bar">
+    <input type="text" id="designName" placeholder="Design name..." value="my-panel">
+    <button class="action-btn" onclick="saveDesign()">💾 Save</button>
+    <select id="designList" onchange="loadDesign(this.value)">
+      <option value="">Load design...</option>
+    </select>
+    <button class="action-btn" onclick="refreshDesigns()">🔄</button>
+    <span style="flex:1"></span>
+    <button class="action-btn primary" onclick="showExport()">📤 Export JSONL</button>
+    <button class="action-btn" onclick="showImport()">📥 Import JSONL</button>
+  </div>
+
+  <!-- Pages -->
+  <div class="pages-bar" id="pagesBar"></div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrapper">
+    <div class="canvas" id="canvas">
+      <div class="canvas-grid"></div>
+    </div>
+  </div>
+
+  <!-- Action bar -->
+  <div class="action-bar">
+    <button class="action-btn" onclick="duplicateSelected()">📋 Duplicate</button>
+    <button class="action-btn danger" onclick="deleteSelected()">🗑️ Delete</button>
+    <button class="action-btn" onclick="bringForward()">⬆️ Forward</button>
+    <button class="action-btn" onclick="sendBackward()">⬇️ Backward</button>
+    <span style="flex:1"></span>
+    <span id="statusText" style="font-size:12px;color:var(--text-dim);line-height:32px;"></span>
+  </div>
+</div>
+
+<!-- Properties -->
+<div class="props-panel">
+  <h2>Properties</h2>
+  <div id="propsContent">
+    <div class="props-empty">Select an object to edit its properties</div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <h2>📤 Export openHASP JSONL</h2>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
+      Copy this JSONL and upload to your openHASP device as <code>pages.jsonl</code>
+    </p>
+    <textarea id="exportText" readonly></textarea>
+    <div class="modal-actions">
+      <button class="action-btn" onclick="copyExport()">📋 Copy</button>
+      <button class="action-btn" onclick="downloadExport()">💾 Download</button>
+      <button class="action-btn" onclick="closeModal('exportModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <h2>📥 Import openHASP JSONL</h2>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
+      Paste your existing <code>pages.jsonl</code> content below
+    </p>
+    <textarea id="importText" placeholder='{"page":1,"id":1,"obj":"label","x":10,"y":10,"w":200,"h":40,"text":"Hello"}'></textarea>
+    <div class="modal-actions">
+      <button class="action-btn primary" onclick="doImport()">Import</button>
+      <button class="action-btn" onclick="closeModal('importModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───
+let panelW = 480, panelH = 480;
+let pages = { 1: [] };
+let currentPage = 1;
+let selectedObj = null;
+let nextId = 1;
+let dragType = null;
+
+// ─── Object defaults ───
+const OBJ_DEFAULTS = {
+  label:     { w:150, h:40,  bg:"#333333", fg:"#ffffff", props:{ text:"Label", text_font:24, align:"center" }},
+  btn:       { w:120, h:50,  bg:"#1565c0", fg:"#ffffff", props:{ text:"Button", text_font:24, radius:10 }},
+  switch:    { w:80,  h:40,  bg:"#444444", fg:"#03a9f4", props:{ val:0 }},
+  slider:    { w:200, h:30,  bg:"#333333", fg:"#03a9f4", props:{ min:0, max:100, val:50 }},
+  arc:       { w:120, h:120, bg:"transparent", fg:"#03a9f4", props:{ min:0, max:100, val:75, type:0 }},
+  gauge:     { w:120, h:120, bg:"transparent", fg:"#e94560", props:{ min:0, max:100, val:60, critical_value:80 }},
+  bar:       { w:200, h:24,  bg:"#333333", fg:"#4caf50", props:{ min:0, max:100, val:70 }},
+  led:       { w:30,  h:30,  bg:"transparent", fg:"#4caf50", props:{ val:200 }},
+  dropdown:  { w:150, h:40,  bg:"#333333", fg:"#ffffff", props:{ options:"Option 1\\nOption 2\\nOption 3" }},
+  checkbox:  { w:140, h:30,  bg:"transparent", fg:"#03a9f4", props:{ text:"Check me", val:0 }},
+  spinner:   { w:60,  h:60,  bg:"transparent", fg:"#03a9f4", props:{ speed:1000 }},
+  obj:       { w:200, h:200, bg:"#222222", fg:"#ffffff", props:{ radius:8 }},
+  img:       { w:100, h:100, bg:"transparent", fg:"#ffffff", props:{ src:"" }},
+  line:      { w:200, h:4,   bg:"#555555", fg:"#555555", props:{}},
+  btnmatrix: { w:240, h:120, bg:"#333333", fg:"#ffffff", props:{ options:'["Btn1","Btn2","\\n","Btn3","Btn4"]' }},
+  tabview:   { w:300, h:250, bg:"#222222", fg:"#ffffff", props:{ btn_pos:1 }},
+};
+
+// ─── Init ───
+async function init() {
+  try {
+    const resp = await fetch("api/options");
+    const opts = await resp.json();
+    panelW = opts.panel_width || 480;
+    panelH = opts.panel_height || 480;
+  } catch(e) {}
+
+  const canvas = document.getElementById("canvas");
+  canvas.style.width = panelW + "px";
+  canvas.style.height = panelH + "px";
+
+  setupDragDrop();
+  renderPages();
+  renderCanvas();
+  refreshDesigns();
+  setStatus(`Canvas: ${panelW}×${panelH}`);
+}
+
+// ─── Pages ───
+function renderPages() {
+  const bar = document.getElementById("pagesBar");
+  bar.innerHTML = "";
+  for (const pid of Object.keys(pages).sort((a,b)=>a-b)) {
+    const tab = document.createElement("button");
+    tab.className = "page-tab" + (parseInt(pid) === currentPage ? " active" : "");
+    tab.textContent = `Page ${pid}`;
+    tab.onclick = () => { currentPage = parseInt(pid); selectedObj = null; renderPages(); renderCanvas(); renderProps(); };
+
+    // Right-click to delete page
+    tab.oncontextmenu = (e) => {
+      e.preventDefault();
+      if (Object.keys(pages).length > 1) {
+        delete pages[pid];
+        if (currentPage === parseInt(pid)) currentPage = parseInt(Object.keys(pages)[0]);
+        renderPages(); renderCanvas(); renderProps();
+      }
+    };
+    bar.appendChild(tab);
+  }
+  const add = document.createElement("button");
+  add.className = "add-page-btn";
+  add.textContent = "+ Page";
+  add.onclick = () => {
+    const ids = Object.keys(pages).map(Number);
+    const next = Math.max(...ids) + 1;
+    if (next > 11) { alert("openHASP supports pages 0-11"); return; }
+    pages[next] = [];
+    currentPage = next;
+    renderPages(); renderCanvas(); renderProps();
+  };
+  bar.appendChild(add);
+}
+
+// ─── Canvas rendering ───
+function renderCanvas() {
+  const canvas = document.getElementById("canvas");
+  canvas.querySelectorAll(".hasp-obj").forEach(el => el.remove());
+  const objs = pages[currentPage] || [];
+  objs.forEach((obj, idx) => {
+    const el = createObjElement(obj, idx);
+    canvas.appendChild(el);
+  });
+  setStatus(`Page ${currentPage} · ${objs.length} objects · ${panelW}×${panelH}`);
+}
+
+function createObjElement(obj, idx) {
+  const el = document.createElement("div");
+  el.className = "hasp-obj" + (selectedObj === idx ? " selected" : "");
+  el.style.left = obj.x + "px";
+  el.style.top = obj.y + "px";
+  el.style.width = obj.w + "px";
+  el.style.height = obj.h + "px";
+  el.dataset.idx = idx;
+
+  // Visual styling
+  const bg = obj.bg || "#333";
+  const fg = obj.fg || "#fff";
+  if (bg !== "transparent") el.style.background = bg;
+  el.style.color = fg;
+
+  // Type-specific rendering
+  el.innerHTML = getObjPreview(obj);
+
+  // Resize handle
+  const handle = document.createElement("div");
+  handle.className = "resize-handle";
+  el.appendChild(handle);
+
+  // Events
+  el.onmousedown = (e) => {
+    if (e.target === handle) { startResize(e, idx); return; }
+    selectObj(idx);
+    startDrag(e, idx);
+  };
+
+  return el;
+}
+
+function getObjPreview(obj) {
+  const p = obj.props || {};
+  switch(obj.type) {
+    case "label": return `<span style="font-size:${Math.min(p.text_font||16,20)}px;padding:4px">${p.text||"Label"}</span>`;
+    case "btn": return `<span style="font-size:${Math.min(p.text_font||16,18)}px">${p.text||"Button"}</span>`;
+    case "switch": return `<span style="font-size:20px">${p.val?"🟢":"⚪"}</span>`;
+    case "slider": return `<div style="width:90%;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;position:relative"><div style="width:${p.val||50}%;height:100%;background:${obj.fg};border-radius:3px"></div></div>`;
+    case "arc": return `<svg viewBox="0 0 100 100" style="width:90%;height:90%"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/><circle cx="50" cy="50" r="40" fill="none" stroke="${obj.fg}" stroke-width="8" stroke-dasharray="${(p.val||75)*2.51} 251" stroke-linecap="round" transform="rotate(-90 50 50)"/><text x="50" y="55" text-anchor="middle" fill="${obj.fg}" font-size="20">${p.val||75}</text></svg>`;
+    case "gauge": return `<svg viewBox="0 0 100 100" style="width:90%;height:90%"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6"/><circle cx="50" cy="50" r="40" fill="none" stroke="${obj.fg}" stroke-width="6" stroke-dasharray="${(p.val||60)*2.51} 251" stroke-linecap="round" transform="rotate(-90 50 50)"/><text x="50" y="55" text-anchor="middle" fill="${obj.fg}" font-size="18">${p.val||60}</text></svg>`;
+    case "bar": return `<div style="width:90%;height:60%;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden"><div style="width:${p.val||70}%;height:100%;background:${obj.fg};border-radius:4px"></div></div>`;
+    case "led": return `<div style="width:70%;height:70%;border-radius:50%;background:${obj.fg};box-shadow:0 0 10px ${obj.fg}"></div>`;
+    case "dropdown": return `<span style="font-size:12px;padding:4px">▾ ${(p.options||"").split("\\n")[0]||"Dropdown"}</span>`;
+    case "checkbox": return `<span style="font-size:12px">${p.val?"☑":"☐"} ${p.text||"Checkbox"}</span>`;
+    case "spinner": return `<span style="font-size:24px;animation:spin 1s linear infinite">⏳</span><style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+    case "obj": return `<span style="font-size:11px;color:rgba(255,255,255,0.3)">Container</span>`;
+    case "img": return `<span style="font-size:11px;color:rgba(255,255,255,0.3)">🖼️ ${p.src||"image"}</span>`;
+    case "line": return "";
+    case "btnmatrix": return `<span style="font-size:11px">⌨️ BtnMatrix</span>`;
+    case "tabview": return `<span style="font-size:11px">📑 TabView</span>`;
+    default: return `<span style="font-size:11px">${obj.type}</span>`;
+  }
+}
+
+// ─── Object selection ───
+function selectObj(idx) {
+  selectedObj = idx;
+  renderCanvas();
+  renderProps();
+}
+
+function deselectAll() {
+  selectedObj = null;
+  renderCanvas();
+  renderProps();
+}
+
+// ─── Properties panel ───
+function renderProps() {
+  const panel = document.getElementById("propsContent");
+  if (selectedObj === null || !pages[currentPage] || !pages[currentPage][selectedObj]) {
+    panel.innerHTML = '<div class="props-empty">Select an object to edit its properties</div>';
+    return;
+  }
+  const obj = pages[currentPage][selectedObj];
+  const p = obj.props || {};
+
+  let html = `
+    <div class="prop-group">
+      <h3>Object</h3>
+      <div class="prop-row"><label>Type</label><input value="${obj.type}" disabled></div>
+      <div class="prop-row"><label>ID</label><input type="number" value="${obj.id}" onchange="updateObj('id',+this.value)"></div>
+    </div>
+    <div class="prop-group">
+      <h3>Position / Size</h3>
+      <div class="prop-row"><label>X</label><input type="number" value="${obj.x}" onchange="updateObj('x',+this.value)"></div>
+      <div class="prop-row"><label>Y</label><input type="number" value="${obj.y}" onchange="updateObj('y',+this.value)"></div>
+      <div class="prop-row"><label>W</label><input type="number" value="${obj.w}" onchange="updateObj('w',+this.value)"></div>
+      <div class="prop-row"><label>H</label><input type="number" value="${obj.h}" onchange="updateObj('h',+this.value)"></div>
+    </div>
+    <div class="prop-group">
+      <h3>Colors</h3>
+      <div class="prop-row"><label>BG</label><input type="color" value="${obj.bg||'#333333'}" onchange="updateObj('bg',this.value)">
+        <input type="text" value="${obj.bg||'#333333'}" style="width:70px" onchange="updateObj('bg',this.value)"></div>
+      <div class="prop-row"><label>FG</label><input type="color" value="${obj.fg||'#ffffff'}" onchange="updateObj('fg',this.value)">
+        <input type="text" value="${obj.fg||'#ffffff'}" style="width:70px" onchange="updateObj('fg',this.value)"></div>
+    </div>
+    <div class="prop-group">
+      <h3>Properties</h3>`;
+
+  // Type-specific properties
+  const propDefs = getPropDefs(obj.type);
+  for (const [key, def] of Object.entries(propDefs)) {
+    const val = p[key] !== undefined ? p[key] : def.default;
+    if (def.type === "select") {
+      const opts = def.options.map(o => `<option value="${o}" ${val==o?"selected":""}>${o}</option>`).join("");
+      html += `<div class="prop-row"><label>${key}</label><select onchange="updateProp('${key}',this.value)">${opts}</select></div>`;
+    } else if (def.type === "number") {
+      html += `<div class="prop-row"><label>${key}</label><input type="number" value="${val}" min="${def.min||0}" max="${def.max||9999}" onchange="updateProp('${key}',+this.value)"></div>`;
+    } else {
+      html += `<div class="prop-row"><label>${key}</label><input type="text" value="${val}" onchange="updateProp('${key}',this.value)"></div>`;
+    }
+  }
+  html += "</div>";
+  panel.innerHTML = html;
+}
+
+function getPropDefs(type) {
+  const common = {
+    text: { type:"text", default:"" },
+    text_font: { type:"number", default:16, min:8, max:48 },
+  };
+  switch(type) {
+    case "label": return { text:{type:"text",default:"Label"}, text_font:{type:"number",default:24,min:8,max:48}, align:{type:"select",default:"center",options:["left","center","right"]} };
+    case "btn": return { text:{type:"text",default:"Button"}, text_font:{type:"number",default:24,min:8,max:48}, radius:{type:"number",default:10,min:0,max:50}, toggle:{type:"select",default:"false",options:["true","false"]} };
+    case "switch": return { val:{type:"select",default:0,options:[0,1]} };
+    case "slider": return { min:{type:"number",default:0}, max:{type:"number",default:100}, val:{type:"number",default:50} };
+    case "arc": return { min:{type:"number",default:0}, max:{type:"number",default:100}, val:{type:"number",default:75}, type:{type:"select",default:0,options:[0,1,2]} };
+    case "gauge": return { min:{type:"number",default:0}, max:{type:"number",default:100}, val:{type:"number",default:60}, critical_value:{type:"number",default:80} };
+    case "bar": return { min:{type:"number",default:0}, max:{type:"number",default:100}, val:{type:"number",default:70} };
+    case "led": return { val:{type:"number",default:200,min:0,max:255} };
+    case "dropdown": return { options:{type:"text",default:"Option 1\\nOption 2\\nOption 3"} };
+    case "checkbox": return { text:{type:"text",default:"Check me"}, val:{type:"select",default:0,options:[0,1]} };
+    case "spinner": return { speed:{type:"number",default:1000,min:100,max:5000} };
+    case "obj": return { radius:{type:"number",default:8,min:0,max:50} };
+    case "img": return { src:{type:"text",default:""} };
+    case "line": return {};
+    case "btnmatrix": return { options:{type:"text",default:'["Btn1","Btn2","\\n","Btn3","Btn4"]'} };
+    case "tabview": return { btn_pos:{type:"select",default:1,options:[0,1,2,3,4]} };
+    default: return {};
+  }
+}
+
+function updateObj(key, val) {
+  if (selectedObj === null) return;
+  pages[currentPage][selectedObj][key] = val;
+  renderCanvas();
+}
+
+function updateProp(key, val) {
+  if (selectedObj === null) return;
+  if (!pages[currentPage][selectedObj].props) pages[currentPage][selectedObj].props = {};
+  pages[currentPage][selectedObj].props[key] = val;
+  renderCanvas();
+  renderProps();
+}
+
+// ─── Drag from toolbox ───
+function setupDragDrop() {
+  document.querySelectorAll(".tool-btn").forEach(btn => {
+    btn.addEventListener("dragstart", e => {
+      dragType = btn.dataset.type;
+      e.dataTransfer.effectAllowed = "copy";
+    });
+  });
+
+  const canvas = document.getElementById("canvas");
+  canvas.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+  canvas.addEventListener("drop", e => {
+    e.preventDefault();
+    if (!dragType) return;
+    const rect = canvas.getBoundingClientRect();
+    const def = OBJ_DEFAULTS[dragType] || { w:100, h:40, bg:"#333", fg:"#fff", props:{} };
+    const x = Math.max(0, Math.min(Math.round((e.clientX - rect.left - def.w/2) / 5) * 5, panelW - def.w));
+    const y = Math.max(0, Math.min(Math.round((e.clientY - rect.top - def.h/2) / 5) * 5, panelH - def.h));
+    const obj = {
+      id: nextId++,
+      type: dragType,
+      x, y,
+      w: def.w, h: def.h,
+      bg: def.bg, fg: def.fg,
+      props: { ...def.props }
+    };
+    if (!pages[currentPage]) pages[currentPage] = [];
+    pages[currentPage].push(obj);
+    selectedObj = pages[currentPage].length - 1;
+    renderCanvas();
+    renderProps();
+    dragType = null;
+  });
+
+  // Click canvas background to deselect
+  canvas.addEventListener("mousedown", e => {
+    if (e.target === canvas || e.target.classList.contains("canvas-grid")) deselectAll();
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    if (e.key === "Delete" || e.key === "Backspace") deleteSelected();
+    if (e.key === "d" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); duplicateSelected(); }
+    if (e.key === "Escape") deselectAll();
+  });
+}
+
+// ─── Drag objects on canvas ───
+function startDrag(e, idx) {
+  e.preventDefault();
+  const obj = pages[currentPage][idx];
+  const startX = e.clientX, startY = e.clientY;
+  const origX = obj.x, origY = obj.y;
+
+  function onMove(e) {
+    obj.x = Math.max(0, Math.min(Math.round((origX + e.clientX - startX) / 5) * 5, panelW - obj.w));
+    obj.y = Math.max(0, Math.min(Math.round((origY + e.clientY - startY) / 5) * 5, panelH - obj.h));
+    renderCanvas();
+  }
+  function onUp() {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    renderProps();
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+// ─── Resize ───
+function startResize(e, idx) {
+  e.preventDefault(); e.stopPropagation();
+  selectObj(idx);
+  const obj = pages[currentPage][idx];
+  const startX = e.clientX, startY = e.clientY;
+  const origW = obj.w, origH = obj.h;
+
+  function onMove(e) {
+    obj.w = Math.max(20, Math.round((origW + e.clientX - startX) / 5) * 5);
+    obj.h = Math.max(20, Math.round((origH + e.clientY - startY) / 5) * 5);
+    renderCanvas();
+  }
+  function onUp() {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    renderProps();
+  }
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+// ─── Actions ───
+function deleteSelected() {
+  if (selectedObj === null) return;
+  pages[currentPage].splice(selectedObj, 1);
+  selectedObj = null;
+  renderCanvas(); renderProps();
+}
+
+function duplicateSelected() {
+  if (selectedObj === null) return;
+  const orig = pages[currentPage][selectedObj];
+  const copy = JSON.parse(JSON.stringify(orig));
+  copy.id = nextId++;
+  copy.x = Math.min(copy.x + 20, panelW - copy.w);
+  copy.y = Math.min(copy.y + 20, panelH - copy.h);
+  pages[currentPage].push(copy);
+  selectedObj = pages[currentPage].length - 1;
+  renderCanvas(); renderProps();
+}
+
+function bringForward() {
+  if (selectedObj === null) return;
+  const arr = pages[currentPage];
+  if (selectedObj < arr.length - 1) {
+    [arr[selectedObj], arr[selectedObj+1]] = [arr[selectedObj+1], arr[selectedObj]];
+    selectedObj++;
+    renderCanvas();
+  }
+}
+
+function sendBackward() {
+  if (selectedObj === null) return;
+  const arr = pages[currentPage];
+  if (selectedObj > 0) {
+    [arr[selectedObj], arr[selectedObj-1]] = [arr[selectedObj-1], arr[selectedObj]];
+    selectedObj--;
+    renderCanvas();
+  }
+}
+
+// ─── Save / Load ───
+async function saveDesign() {
+  const name = document.getElementById("designName").value.trim() || "untitled";
+  const data = { name, pages, nextId };
+  await fetch("api/designs", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
+  setStatus(`Saved: ${name}`);
+  refreshDesigns();
+}
+
+async function refreshDesigns() {
+  try {
+    const resp = await fetch("api/designs");
+    const data = await resp.json();
+    const sel = document.getElementById("designList");
+    sel.innerHTML = '<option value="">Load design...</option>';
+    (data.designs || []).forEach(d => {
+      sel.innerHTML += `<option value="${d}">${d}</option>`;
+    });
+  } catch(e) {}
+}
+
+async function loadDesign(name) {
+  if (!name) return;
+  try {
+    const resp = await fetch(`api/designs/${name}`);
+    const data = await resp.json();
+    pages = data.pages || { 1: [] };
+    nextId = data.nextId || 1;
+    currentPage = parseInt(Object.keys(pages)[0]) || 1;
+    selectedObj = null;
+    document.getElementById("designName").value = name;
+    renderPages(); renderCanvas(); renderProps();
+    setStatus(`Loaded: ${name}`);
+  } catch(e) { setStatus("Load failed"); }
+}
+
+// ─── Export / Import ───
+async function showExport() {
+  try {
+    const resp = await fetch("api/export", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ pages })
+    });
+    const data = await resp.json();
+    document.getElementById("exportText").value = data.jsonl || "";
+  } catch(e) {
+    document.getElementById("exportText").value = "Export failed";
+  }
+  document.getElementById("exportModal").classList.add("show");
+}
+
+function showImport() {
+  document.getElementById("importText").value = "";
+  document.getElementById("importModal").classList.add("show");
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove("show");
+}
+
+function copyExport() {
+  const ta = document.getElementById("exportText");
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(() => setStatus("Copied to clipboard"));
+}
+
+function downloadExport() {
+  const text = document.getElementById("exportText").value;
+  const blob = new Blob([text], {type:"text/plain"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "pages.jsonl";
+  a.click();
+}
+
+function doImport() {
+  const text = document.getElementById("importText").value.trim();
+  if (!text) return;
+
+  pages = {};
+  nextId = 1;
+  const lines = text.split("\n").filter(l => l.trim());
+  for (const line of lines) {
+    try {
+      const obj = JSON.parse(line);
+      const page = obj.page || 1;
+      if (!pages[page]) pages[page] = [];
+
+      const type = obj.obj || "label";
+      const def = OBJ_DEFAULTS[type] || { w:100, h:40, bg:"#333", fg:"#fff", props:{} };
+
+      // Extract known fields, put the rest in props
+      const { page: _, id, obj: __, x, y, w, h, ...rest } = obj;
+      const props = {};
+      for (const [k,v] of Object.entries(rest)) {
+        props[k] = v;
+      }
+
+      const designObj = {
+        id: id || nextId,
+        type,
+        x: x || 0, y: y || 0,
+        w: w || def.w, h: h || def.h,
+        bg: def.bg, fg: def.fg,
+        props
+      };
+      if (id >= nextId) nextId = id + 1;
+      else nextId++;
+
+      pages[page].push(designObj);
+    } catch(e) { /* skip bad lines */ }
+  }
+
+  if (Object.keys(pages).length === 0) pages = { 1: [] };
+  currentPage = parseInt(Object.keys(pages).sort((a,b)=>a-b)[0]);
+  selectedObj = null;
+  closeModal("importModal");
+  renderPages(); renderCanvas(); renderProps();
+  setStatus("Imported successfully");
+}
+
+function setStatus(msg) {
+  document.getElementById("statusText").textContent = msg;
+}
+
+// ─── Boot ───
+init();
+</script>
+</body>
+</html>
