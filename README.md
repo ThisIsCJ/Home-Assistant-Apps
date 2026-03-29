@@ -13,3 +13,6 @@ Custom Home Assistant add-ons by CJ.
 
 ### Config Viewer
 A simple add-on with 3 configurable text inputs displayed in a sidebar panel. Good as a reference/template for building new add-ons.
+
+### Hello World
+A minimal example add-on that displays a configurable greeting in the sidebar. About as simple as an add-on gets.
