@@ -117,30 +117,27 @@ In RF Tools add the device and provide `input_text.rf_last_code` as the "Learned
 - Send button: click the send action next to the saved button to call the configured transmit service on your ESPHome device and emulate the button.
 
 ## Add-on Options (configure devices)
-Open the add-on in the Supervisor UI, click "Configuration" (Options) and provide a `devices` array with up to 5 device objects. Example:
+Open the add-on in the Supervisor UI, click "Configuration" (Options), and define up to 5 devices using the following flat option fields.
+
+Example Options JSON:
 
 ```json
 {
-  "devices": [
-    {
-      "name": "Living Room RF",
-      "learn_entity": "switch.livingroom_rf_learn",
-      "sensor_entity": "input_text.rf_last_code",
-      "transmit_service": "esphome.transmit_rf"
-    },
-    {
-      "name": "Garage RF",
-      "learn_entity": "switch.garage_rf_learn",
-      "sensor_entity": "input_text.rf_last_code_garage"
-    }
-  ]
+  "device_1_name": "Living Room RF",
+  "device_1_learn_entity": "switch.livingroom_rf_learn",
+  "device_1_sensor_entity": "input_text.rf_last_code",
+  "device_1_transmit_service": "esphome.transmit_rf",
+  "device_2_name": "Garage RF",
+  "device_2_learn_entity": "switch.garage_rf_learn",
+  "device_2_sensor_entity": "input_text.rf_last_code_garage",
+  "device_2_transmit_service": "esphome.transmit_rf"
 }
 ```
 
-- `name`: Friendly name shown in the UI.
-- `learn_entity`: The entity that toggles the ESPHome device into learn mode (usually a `switch`).
-- `sensor_entity`: A Home Assistant entity that will hold the learned code (see example automation in this README).
-- `transmit_service`: The HA service to call to transmit a learned code (defaults to `esphome.transmit_rf`).
+- `device_X_name`: Friendly name shown in the UI.
+- `device_X_learn_entity`: The entity that toggles the ESPHome device into learn mode (usually a `switch`).
+- `device_X_sensor_entity`: A Home Assistant entity that will hold the learned code (see example automation in this README).
+- `device_X_transmit_service`: The HA service to call to transmit a learned code. Defaults to `esphome.transmit_rf` if left blank.
 
 After saving Options, restart the add-on and refresh the RF Tools page.
 

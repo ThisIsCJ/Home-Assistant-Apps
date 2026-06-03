@@ -16,18 +16,20 @@ def load_options():
     try:
         with open(OPTIONS_PATH, 'r') as f:
             opts = json.load(f)
-            devices = opts.get('devices', []) or []
-            # normalize devices and assign stable ids based on index
             normalized = []
-            for i, d in enumerate(devices):
-                nd = {
-                    'id': d.get('id') or f'dev_{i}',
-                    'name': d.get('name', f'Device {i+1}'),
-                    'learn_entity': d.get('learn_entity', ''),
-                    'sensor_entity': d.get('sensor_entity', ''),
-                    'transmit_service': d.get('transmit_service', 'esphome.transmit_rf')
-                }
-                normalized.append(nd)
+            for i in range(1, 6):
+                name = opts.get(f'device_{i}_name', '').strip()
+                learn_entity = opts.get(f'device_{i}_learn_entity', '').strip()
+                sensor_entity = opts.get(f'device_{i}_sensor_entity', '').strip()
+                transmit_service = opts.get(f'device_{i}_transmit_service', 'esphome.transmit_rf').strip() or 'esphome.transmit_rf'
+                if name and learn_entity and sensor_entity:
+                    normalized.append({
+                        'id': f'dev_{i}',
+                        'name': name,
+                        'learn_entity': learn_entity,
+                        'sensor_entity': sensor_entity,
+                        'transmit_service': transmit_service
+                    })
             return normalized
     except (FileNotFoundError, json.JSONDecodeError):
         return []
@@ -207,24 +209,24 @@ PAGE_HTML = """<!DOCTYPE html>
     <main class="grid">
         <section class="card">
             <h2>Device setup</h2>
-            <p class="small-text">Add your ESPHome device manually using its HA entity IDs. The add-on uses Home Assistant REST endpoints from the browser, so your session stays authenticated.</p>
-            <div class="field-row">
-                <label>Device name<input id="deviceName" type="text" placeholder="Living Room RF" /></label>
-                <label>Learn switch entity<input id="deviceLearnEntity" type="text" placeholder="switch.rf_learn_mode" /></label>
-            </div>
-            <div class="field-row">
-                <label>Learned code sensor<input id="deviceSensorEntity" type="text" placeholder="sensor.rf_last_code" /></label>
-                <label>Transmit service<input id="deviceService" type="text" placeholder="esphome.transmit_rf" value="esphome.transmit_rf" /></label>
-            </div>
-            <div class="actions">
-                <button id="addDeviceButton" onclick="addDevice()">Add device</button>
+            <p class="small-text">Configure up to 5 ESPHome RF devices in the add-on Options. The page will automatically show the configured devices once the add-on is restarted.</p>
+            <div class="notice">
+                <strong>Add-on Options fields</strong>
+                <p class="small-text">Each device uses these fields:</p>
+                <ul class="small-text">
+                    <li><code>device_X_name</code></li>
+                    <li><code>device_X_learn_entity</code></li>
+                    <li><code>device_X_sensor_entity</code></li>
+                    <li><code>device_X_transmit_service</code></li>
+                </ul>
+                <p class="small-text">Replace <code>X</code> with a number from 1 to 5.</p>
             </div>
         </section>
 
         <section class="card">
             <h2>Registered devices</h2>
             <ul id="deviceList" class="line-list"></ul>
-            <p id="deviceEmpty" class="muted">No devices registered yet. Add one above to start learning remotes.</p>
+            <p id="deviceEmpty" class="muted">No devices configured yet. Set up your devices in the add-on Options and restart the add-on.</p>
         </section>
 
         <section class="card split">
