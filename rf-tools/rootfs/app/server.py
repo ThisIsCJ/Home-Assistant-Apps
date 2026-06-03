@@ -17,6 +17,8 @@ def load_options():
         with open(OPTIONS_PATH, 'r') as f:
             opts = json.load(f)
             normalized = []
+
+            # Modern flat config fields (device_1_name, device_1_learn_entity, etc.)
             for i in range(1, 6):
                 name = opts.get(f'device_{i}_name', '').strip()
                 learn_entity = opts.get(f'device_{i}_learn_entity', '').strip()
@@ -30,6 +32,25 @@ def load_options():
                         'sensor_entity': sensor_entity,
                         'transmit_service': transmit_service
                     })
+
+            # Legacy array configuration fallback from older versions
+            if not normalized and isinstance(opts.get('devices'), list):
+                for i, d in enumerate(opts.get('devices', []), start=1):
+                    if not isinstance(d, dict):
+                        continue
+                    name = str(d.get('name', '')).strip()
+                    learn_entity = str(d.get('learn_entity', '')).strip()
+                    sensor_entity = str(d.get('sensor_entity', '')).strip()
+                    transmit_service = str(d.get('transmit_service', 'esphome.transmit_rf')).strip() or 'esphome.transmit_rf'
+                    if name and learn_entity and sensor_entity:
+                        normalized.append({
+                            'id': f'dev_{i}',
+                            'name': name,
+                            'learn_entity': learn_entity,
+                            'sensor_entity': sensor_entity,
+                            'transmit_service': transmit_service
+                        })
+
             return normalized
     except (FileNotFoundError, json.JSONDecodeError):
         return []
