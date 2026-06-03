@@ -17,5 +17,8 @@ Visual drag-and-drop screen designer for openHASP panels (like the T3E 480x480).
 ### Config Viewer
 A simple add-on with 3 configurable text inputs displayed in a sidebar panel. Good as a reference/template for building new add-ons.
 
+### RF Tools
+A modern RF remote management add-on for ESPHome devices. Register your RF-capable ESPHome device, learn remote buttons, and replay learned codes from a polished dashboard.
+
 ### Hello World
 A minimal example add-on that displays a configurable greeting in the sidebar. About as simple as an add-on gets.
