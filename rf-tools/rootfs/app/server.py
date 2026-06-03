@@ -6,11 +6,31 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 PORT = 8099
 STATE_PATH = "/data/rf-tools.json"
+OPTIONS_PATH = "/data/options.json"
 
 DEFAULT_STATE = {
-    "devices": [],
     "remotes": []
 }
+
+def load_options():
+    try:
+        with open(OPTIONS_PATH, 'r') as f:
+            opts = json.load(f)
+            devices = opts.get('devices', []) or []
+            # normalize devices and assign stable ids based on index
+            normalized = []
+            for i, d in enumerate(devices):
+                nd = {
+                    'id': d.get('id') or f'dev_{i}',
+                    'name': d.get('name', f'Device {i+1}'),
+                    'learn_entity': d.get('learn_entity', ''),
+                    'sensor_entity': d.get('sensor_entity', ''),
+                    'transmit_service': d.get('transmit_service', 'esphome.transmit_rf')
+                }
+                normalized.append(nd)
+            return normalized
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
 
 PAGE_HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -344,18 +364,12 @@ PAGE_HTML = """<!DOCTYPE html>
                 return;
             }
             const id = `dev_${Date.now()}`;
-            appState.devices.push({ id, name, learn_entity: learnEntity, sensor_entity: sensorEntity, transmit_service: transmitService });
-            saveState();
-            document.getElementById('deviceName').value = '';
-            document.getElementById('deviceLearnEntity').value = '';
-            document.getElementById('deviceSensorEntity').value = '';
-            document.getElementById('deviceService').value = 'esphome.transmit_rf';
+                // Devices are managed via the add-on configuration (Options). Edit the add-on and configure up to 5 devices.
+            alert('Devices must be configured in the add-on Options (max 5). Open the add-on and edit Configuration.');
         }
 
         function removeDevice(deviceId) {
-            appState.devices = appState.devices.filter(d => d.id !== deviceId);
-            appState.remotes = appState.remotes.filter(r => r.device_id !== deviceId);
-            saveState();
+            alert('Devices are configured in the add-on Options; remove them there.');
         }
 
         function removeRemote(remoteId) {
@@ -540,7 +554,10 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == '/api/state':
-            self._send_json(load_state())
+            state = load_state()
+            # override devices with add-on options (up to 5 configured devices)
+            state['devices'] = load_options()
+            self._send_json(state)
             return
 
         self.send_error(404, 'Not Found')
@@ -551,7 +568,10 @@ class RequestHandler(BaseHTTPRequestHandler):
             body = self.rfile.read(length) if length else b''
             try:
                 data = json.loads(body.decode('utf-8'))
-                save_state(data)
+                # persist only the remotes (devices are managed in add-on options)
+                existing = load_state()
+                existing['remotes'] = data.get('remotes', existing.get('remotes', []))
+                save_state(existing)
                 self._send_json({ 'ok': True })
             except json.JSONDecodeError:
                 self.send_error(400, 'Invalid JSON')

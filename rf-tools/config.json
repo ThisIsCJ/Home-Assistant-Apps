@@ -12,6 +12,23 @@
   "ingress_port": 8099,
   "panel_icon": "mdi:remote",
   "panel_title": "RF Tools",
-  "options": {},
-  "schema": {}
+  "options": {
+    "devices": []
+  },
+  "schema": {
+    "devices": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "learn_entity": { "type": "string" },
+          "sensor_entity": { "type": "string" },
+          "transmit_service": { "type": "string", "default": "esphome.transmit_rf" }
+        },
+        "required": ["name", "learn_entity", "sensor_entity"]
+      }
+    }
+  }
 }
