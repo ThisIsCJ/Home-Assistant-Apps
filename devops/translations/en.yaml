@@ -14,11 +14,6 @@ configuration:
     description: >-
       Home Assistant usernames that get platform-admin rights. Leave empty
       to make every Home Assistant user who can open the panel an admin.
-  external_mongo_uri:
-    name: External MongoDB URI
-    description: >-
-      Leave empty to use the bundled MongoDB (stored in the add-on's /data).
-      Set a mongodb:// connection string to use an external database instead.
   log_level:
     name: Log level
     description: Verbosity of the add-on's own log output.

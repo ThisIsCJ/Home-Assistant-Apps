@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getApiBase } from '../../lib/env.js';
+import { api } from '../../lib/api.js';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { Icons, StatusIcon } from '../../components/Icons.jsx';
 
@@ -38,6 +39,68 @@ export function Database() {
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const fileRef = useRef(null);
+
+  // Connection config (managed in-app, applied via add-on restart)
+  const [dbConfig, setDbConfig] = useState(null);
+  const [uriInput, setUriInput] = useState('');
+  const [testing, setTesting]   = useState(false);
+  const [testMsg, setTestMsg]   = useState(null);
+  const [savingDb, setSavingDb] = useState(false);
+  const [dbMsg, setDbMsg]       = useState(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+
+  const loadDbConfig = async () => {
+    try {
+      const cfg = await api.get('/admin/db/config', accessToken);
+      setDbConfig(cfg);
+    } catch { /* leave null */ }
+  };
+
+  useEffect(() => {
+    if (accessToken) loadDbConfig();
+  }, [accessToken]);
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      const r = await api.post('/admin/db/config/test', { uri: uriInput.trim() }, accessToken);
+      setTestMsg({ ok: r.ok, msg: r.ok ? (r.message || 'Connected successfully.') : r.message });
+    } catch (err) {
+      setTestMsg({ ok: false, msg: err.message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const doSaveDb = async () => {
+    setShowSaveConfirm(false);
+    setSavingDb(true);
+    setDbMsg(null);
+    try {
+      const r = await api.post('/admin/db/config', { uri: uriInput.trim() }, accessToken);
+      setDbMsg({ ok: true, msg: r.message || 'Saved. Restarting…' });
+    } catch (err) {
+      setDbMsg({ ok: false, msg: err.message });
+    } finally {
+      setSavingDb(false);
+    }
+  };
+
+  const doRevertDb = async () => {
+    setShowRevertConfirm(false);
+    setSavingDb(true);
+    setDbMsg(null);
+    try {
+      const r = await api.del('/admin/db/config', accessToken);
+      setDbMsg({ ok: true, msg: r.message || 'Reverted. Restarting…' });
+    } catch (err) {
+      setDbMsg({ ok: false, msg: err.message });
+    } finally {
+      setSavingDb(false);
+    }
+  };
 
   const handleExport = async () => {
     setExportMsg(null);
@@ -109,29 +172,75 @@ export function Database() {
             <span className="card-title green" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <Icons.Database size={13} /> Connection
             </span>
-            <span className="badge badge-green">
-              <StatusIcon status="success" size={11} />
-              Connected
-            </span>
+            {dbConfig && (
+              dbConfig.connected
+                ? <span className="badge badge-green"><StatusIcon status="success" size={11} />Connected</span>
+                : <span className="badge badge-red"><StatusIcon status="failed" size={11} />Disconnected</span>
+            )}
           </div>
           <div className="card-body">
             <div className="alert alert-info" style={{ marginBottom: 14 }}>
               <Icons.Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-              The database connection string is configured via the <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>MONGO_URI</code> environment variable. To change it, update the variable and restart the container.
+              {dbConfig?.source === 'external'
+                ? <>Using an external database: <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>{dbConfig.uri}</code></>
+                : <>Using the bundled MongoDB. Enter an external connection string below to migrate. Saving restarts the add-on to apply the change.</>
+              }
             </div>
+
             <div className="input-group">
               <label className="input-label">Database type</label>
-              <select
-                className="input"
-                value={dbType}
-                onChange={e => setDbType(e.target.value)}
-              >
+              <select className="input" value={dbType} onChange={e => setDbType(e.target.value)}>
                 {DB_TYPES.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
               <span className="input-hint">{DB_TYPES.find(t => t.value === dbType)?.hint}</span>
             </div>
+
+            <div className="input-group">
+              <label className="input-label">Connection string</label>
+              <input
+                className="input"
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}
+                placeholder="mongodb+srv://user:password@cluster.example.com/devops-platform"
+                value={uriInput}
+                onChange={e => { setUriInput(e.target.value); setTestMsg(null); }}
+              />
+              <span className="input-hint">Standard <code>mongodb://</code> or <code>mongodb+srv://</code> URI, including credentials and database name.</span>
+            </div>
+
+            {testMsg && (
+              <div className={`alert ${testMsg.ok ? 'alert-ok' : 'alert-err'}`} style={{ marginBottom: 10 }}>
+                <StatusIcon status={testMsg.ok ? 'success' : 'failed'} size={13} />
+                {testMsg.msg}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn btn-sec btn-sm" onClick={handleTest} disabled={testing || savingDb || !uriInput.trim()}>
+                {testing ? <Icons.Loader size={13} className="spin" /> : <Icons.Activity size={13} />}
+                {testing ? 'Testing…' : 'Test connection'}
+              </button>
+              <button className="btn btn-pri btn-sm" onClick={() => setShowSaveConfirm(true)} disabled={savingDb || !uriInput.trim()}>
+                {savingDb ? <Icons.Loader size={13} className="spin" /> : <Icons.Check size={13} />}
+                Save &amp; restart
+              </button>
+              {dbConfig?.source === 'external' && (
+                <button className="btn btn-sec btn-sm" style={{ color: 'var(--red)', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => setShowRevertConfirm(true)} disabled={savingDb}>
+                  <Icons.XCircle size={13} /> Revert to bundled
+                </button>
+              )}
+            </div>
+
+            {dbMsg && (
+              <div className={`alert ${dbMsg.ok ? 'alert-ok' : 'alert-err'}`} style={{ marginTop: 10 }}>
+                <StatusIcon status={dbMsg.ok ? 'success' : 'failed'} size={13} />
+                {dbMsg.msg}
+              </div>
+            )}
           </div>
         </div>
 
@@ -203,6 +312,28 @@ export function Database() {
           danger
           onConfirm={doImport}
           onClose={() => { setShowImportConfirm(false); setPendingFile(null); }}
+        />
+      )}
+
+      {showSaveConfirm && (
+        <ConfirmModal
+          title="Change database & restart?"
+          body="The connection will be verified, then the add-on will restart to reconnect all services to the new database. The platform is briefly unavailable during the restart. Existing data is not migrated — use Export/Import for that."
+          confirmLabel="Save & restart"
+          danger
+          onConfirm={doSaveDb}
+          onClose={() => setShowSaveConfirm(false)}
+        />
+      )}
+
+      {showRevertConfirm && (
+        <ConfirmModal
+          title="Revert to bundled database?"
+          body="The add-on will restart and reconnect to the bundled MongoDB stored in /data/mongodb. Data in the external database is not copied back."
+          confirmLabel="Revert & restart"
+          danger
+          onConfirm={doRevertDb}
+          onClose={() => setShowRevertConfirm(false)}
         />
       )}
     </div>

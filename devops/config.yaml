@@ -1,5 +1,5 @@
 name: DevOps Platform
-version: "1.1.2"
+version: "1.2.0"
 slug: devops_platform
 description: Self-hosted DevOps provisioning, monitoring and site-request platform
 arch:
@@ -24,11 +24,13 @@ ingress_port: 8099
 panel_icon: mdi:rocket-launch
 panel_title: DevOps
 panel_admin: true
+# Allow the add-on to call the Supervisor API so it can restart itself when the
+# database connection string is changed from within the app (Admin → Database).
+hassio_api: true
 options:
   app_name: DevOps Platform
   admin_group: devops-admins
   admin_users: []
-  external_mongo_uri: ""
   log_level: info
 schema:
   app_name: str
@@ -37,7 +39,4 @@ schema:
   # who can open the panel is an admin.
   admin_users:
     - str
-  # Leave empty to use the bundled MongoDB (data stored in /data/mongodb).
-  # Set to a mongodb:// URI to use an external MongoDB instead.
-  external_mongo_uri: str?
   log_level: list(debug|info|warning|error)

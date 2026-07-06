@@ -15,7 +15,6 @@ OPTIONS=/data/options.json
 APP_NAME="$(jq -r '.app_name // "DevOps Platform"' "${OPTIONS}" 2>/dev/null || echo 'DevOps Platform')"
 ADMIN_GROUP="$(jq -r '.admin_group // "devops-admins"' "${OPTIONS}" 2>/dev/null || echo 'devops-admins')"
 ADMIN_USERS="$(jq -r '(.admin_users // []) | join(",")' "${OPTIONS}" 2>/dev/null || echo '')"
-EXTERNAL_MONGO="$(jq -r '.external_mongo_uri // ""' "${OPTIONS}" 2>/dev/null || echo '')"
 LOG_LEVEL="$(jq -r '.log_level // "info"' "${OPTIONS}" 2>/dev/null || echo 'info')"
 bashio::log.level "${LOG_LEVEL}" || true
 
@@ -45,9 +44,31 @@ trap shutdown TERM INT
 # ── MongoDB ───────────────────────────────────────────────────────────────────
 mongo_up() { (exec 3<>/dev/tcp/127.0.0.1/27017) 2>/dev/null && exec 3>&-; }
 
-if [ -n "${EXTERNAL_MONGO}" ] && [ "${EXTERNAL_MONGO}" != "null" ]; then
-    export MONGO_URI="${EXTERNAL_MONGO}"
-    bashio::log.info "Using external MongoDB"
+# The database connection string is managed from within the app
+# (Admin → Database) and persisted to /data/db-config.json. When no external URI
+# is configured there, fall back to the bundled MongoDB. Legacy installs that
+# still carry the old `external_mongo_uri` add-on option are honoured once so the
+# database keeps working across the upgrade.
+DB_CONFIG=/data/db-config.json
+CONFIGURED_MONGO=""
+if [ -f "${DB_CONFIG}" ]; then
+    CONFIGURED_MONGO="$(jq -r '.uri // ""' "${DB_CONFIG}" 2>/dev/null || echo '')"
+fi
+if [ -z "${CONFIGURED_MONGO}" ] || [ "${CONFIGURED_MONGO}" = "null" ]; then
+    LEGACY_MONGO="$(jq -r '.external_mongo_uri // ""' "${OPTIONS}" 2>/dev/null || echo '')"
+    if [ -n "${LEGACY_MONGO}" ] && [ "${LEGACY_MONGO}" != "null" ]; then
+        CONFIGURED_MONGO="${LEGACY_MONGO}"
+        # Persist the migrated URI so it survives once the deprecated option is
+        # dropped from the add-on config.
+        jq -n --arg uri "${LEGACY_MONGO}" '{uri: $uri, updated_at: (now | todate)}' \
+            > "${DB_CONFIG}" 2>/dev/null \
+            && bashio::log.info "Migrated external_mongo_uri option to ${DB_CONFIG}"
+    fi
+fi
+
+if [ -n "${CONFIGURED_MONGO}" ] && [ "${CONFIGURED_MONGO}" != "null" ]; then
+    export MONGO_URI="${CONFIGURED_MONGO}"
+    bashio::log.info "Using configured external MongoDB"
 else
     export MONGO_URI="mongodb://127.0.0.1:27017/devops-platform"
     mkdir -p /data/mongodb

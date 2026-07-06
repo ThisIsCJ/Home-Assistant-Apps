@@ -31,7 +31,6 @@ Key conversion changes:
 app_name: DevOps Platform
 admin_group: devops-admins
 admin_users: []
-external_mongo_uri: ""
 log_level: info
 ```
 
@@ -52,9 +51,11 @@ admin_users:
   - csaba
 ```
 
-### `external_mongo_uri`
+### Database connection
 
-Leave empty (default) to use the bundled MongoDB. Set a `mongodb://user:pass@host:27017/devops-platform` URI to use an external MongoDB / Atlas / Cosmos / DocumentDB instance instead — the bundled `mongod` is then not started. Migrating between the two: use **Admin → Database → Export/Import**.
+The database connection is **managed inside the app**, not from this config screen. Go to **Admin → Database → Connection**, enter a `mongodb://` / `mongodb+srv://` URI (MongoDB / Atlas / Cosmos / DocumentDB), and **Save & restart** — the add-on verifies the connection, persists it to `/data/db-config.json`, and restarts itself so all services reconnect. When no external URI is set, the bundled `mongod` is used. Use **Revert to bundled** to go back, and **Export/Import** on the same page to migrate data between databases.
+
+> The deprecated `external_mongo_uri` add-on option has been removed. Any value previously set there is migrated to `/data/db-config.json` automatically on the first start after updating.
 
 ### `log_level`
 
@@ -83,7 +84,7 @@ By default the Supervisor builds the image locally on install (several minutes o
 
 `amd64` and `aarch64`. MongoDB publishes no Debian apt packages for arm64, so the add-on takes the `mongod` binary from the official multi-arch `mongo:7.0` Docker image at build time.
 
-Note for ARM boards: MongoDB 7 requires an **ARMv8.2-class CPU**. A Raspberry Pi 5, ODROID N2+, or most recent aarch64 boards work; a **Raspberry Pi 4 does not** (mongod exits immediately with an illegal-instruction error). On a Pi 4, set `external_mongo_uri` to a MongoDB running elsewhere and the add-on works normally without the bundled database.
+Note for ARM boards: MongoDB 7 requires an **ARMv8.2-class CPU**. A Raspberry Pi 5, ODROID N2+, or most recent aarch64 boards work; a **Raspberry Pi 4 does not** (mongod exits immediately with an illegal-instruction error). On a Pi 4, point the add-on at a MongoDB running elsewhere via **Admin → Database → Connection** and it works normally without the bundled database.
 
 ## Troubleshooting
 

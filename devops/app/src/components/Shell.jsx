@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider.jsx';
+import { resolveAssetUrl } from '../lib/env.js';
 import { Icons } from './Icons.jsx';
 
 const USER_NAV = [
@@ -83,7 +84,7 @@ export function Shell({ children, title }) {
   // is meaningless, so the sign-out controls are hidden.
   const haMode = Boolean(appConfig?.haIngress);
   const appName = appConfig?.appName || 'DevOps Platform';
-  const logoUrl = appConfig?.logoUrl;
+  const logoUrl = resolveAssetUrl(appConfig?.logoUrl);
 
   return (
     <div className="app-shell" data-mobile-nav={mobileOpen ? 'open' : 'closed'}

@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { ObjectId } from 'mongodb';
+import fs from 'node:fs';
+import { ObjectId, MongoClient } from 'mongodb';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { getDb, isConnected } from '../db.js';
@@ -879,6 +880,102 @@ router.post('/db/import', upload.single('backup'), asyncHandler(async (req, res)
     results[name] = docs.length;
   }
   res.json({ ok: true, collections: results });
+}));
+
+// ── Database connection string (managed in-app, persisted to /data) ───────────
+// All three backend services read MONGO_URI at startup, so a change is applied
+// by writing the file and restarting the add-on via the Supervisor API.
+const DB_CONFIG_PATH = '/data/db-config.json';
+
+function isValidMongoUri(uri) {
+  return typeof uri === 'string' && /^mongodb(\+srv)?:\/\/.+/.test(uri.trim());
+}
+
+// Hide the password in the userinfo section before returning a URI to the client.
+function maskMongoUri(uri) {
+  return String(uri).replace(/(\/\/[^:/@]+:)[^@]*@/, '$1***@');
+}
+
+function readDbConfigFile() {
+  try {
+    return JSON.parse(fs.readFileSync(DB_CONFIG_PATH, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function testMongoUri(uri) {
+  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 5000 });
+  try {
+    await client.connect();
+    await client.db().command({ ping: 1 });
+    return { ok: true, message: 'Connected successfully.' };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+function scheduleSelfRestart() {
+  // Delay so the HTTP response is flushed before the container goes down.
+  setTimeout(async () => {
+    try {
+      const token = process.env.SUPERVISOR_TOKEN;
+      const res = await fetch('http://supervisor/addons/self/restart', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) console.error('[admin] self-restart returned', res.status);
+    } catch (err) {
+      console.error('[admin] self-restart failed:', err.message);
+    }
+  }, 750);
+}
+
+router.get('/db/config', asyncHandler(async (req, res) => {
+  const cfg = readDbConfigFile();
+  const uri = cfg?.uri || '';
+  res.json({
+    source: uri ? 'external' : 'bundled',
+    uri: uri ? maskMongoUri(uri) : '',
+    connected: isConnected(),
+    updated_at: cfg?.updated_at || null,
+  });
+}));
+
+router.post('/db/config/test', asyncHandler(async (req, res) => {
+  const uri = String(req.body?.uri || '').trim();
+  if (!isValidMongoUri(uri)) {
+    return res.status(400).json({ ok: false, message: 'Enter a valid mongodb:// or mongodb+srv:// connection string.' });
+  }
+  res.json(await testMongoUri(uri));
+}));
+
+router.post('/db/config', asyncHandler(async (req, res) => {
+  const uri = String(req.body?.uri || '').trim();
+  if (!isValidMongoUri(uri)) {
+    return res.status(400).json({ ok: false, message: 'Enter a valid mongodb:// or mongodb+srv:// connection string.' });
+  }
+  const test = await testMongoUri(uri);
+  if (!test.ok) {
+    return res.status(400).json({ ok: false, message: `Connection test failed: ${test.message}` });
+  }
+  fs.writeFileSync(DB_CONFIG_PATH, JSON.stringify({ uri, updated_at: new Date().toISOString() }, null, 2));
+  if (isConnected()) {
+    await audit(getDb(), req, 'update', 'database', 'connection', 'Changed database connection string');
+  }
+  scheduleSelfRestart();
+  res.json({ ok: true, restarting: true, message: 'Connection saved and verified. The add-on is restarting to apply the change.' });
+}));
+
+router.delete('/db/config', asyncHandler(async (req, res) => {
+  try { fs.unlinkSync(DB_CONFIG_PATH); } catch { /* already absent */ }
+  if (isConnected()) {
+    await audit(getDb(), req, 'update', 'database', 'connection', 'Reverted to the bundled database');
+  }
+  scheduleSelfRestart();
+  res.json({ ok: true, restarting: true, message: 'Reverted to the bundled database. The add-on is restarting.' });
 }));
 
 export default router;

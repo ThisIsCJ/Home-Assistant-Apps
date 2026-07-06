@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider.jsx';
+import { resolveAssetUrl } from '../lib/env.js';
 import { Icons } from '../components/Icons.jsx';
 
 const PROVIDER_ICONS = {
@@ -23,7 +24,7 @@ export function Login() {
 
   const providers = appConfig?.authProviders || [];
   const appName = appConfig?.appName || 'DevOps Platform';
-  const logoUrl = appConfig?.logoUrl;
+  const logoUrl = resolveAssetUrl(appConfig?.logoUrl);
 
   // Auto-redirect if already logged in
   useEffect(() => {

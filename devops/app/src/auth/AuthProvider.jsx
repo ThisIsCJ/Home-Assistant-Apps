@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { resolveAssetUrl } from '../lib/env.js';
 import { fetchAppConfig, invalidateAppConfig } from '../lib/appConfig.js';
 import {
   buildUserManager,
@@ -143,7 +144,7 @@ export function AuthProvider({ children }) {
         link.rel = 'icon';
         document.head.appendChild(link);
       }
-      link.href = appConfig.faviconUrl;
+      link.href = resolveAssetUrl(appConfig.faviconUrl);
     }
   }, [appConfig?.faviconUrl, appConfig?.appName]);
 

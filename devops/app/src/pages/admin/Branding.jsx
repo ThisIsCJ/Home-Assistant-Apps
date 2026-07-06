@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getApiBase } from '../../lib/env.js';
+import { getApiBase, resolveAssetUrl } from '../../lib/env.js';
 import { useAuth } from '../../auth/AuthProvider.jsx';
 import { api } from '../../lib/api.js';
 import { Icons } from '../../components/Icons.jsx';
@@ -58,7 +58,7 @@ function ImageUploadField({ label, value, onChange, accessToken, hint }) {
       <label className="input-label">{label}</label>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {value && (
-          <img src={value} alt={label} style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-3)' }} />
+          <img src={resolveAssetUrl(value)} alt={label} style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-3)' }} />
         )}
         <input
           className="input"
