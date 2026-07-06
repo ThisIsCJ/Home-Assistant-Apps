@@ -1,4 +1,0 @@
-# Debian base (not Alpine) because MongoDB ships packages for Debian only.
-build_from:
-  amd64: ghcr.io/home-assistant/amd64-base-debian:bookworm
-  aarch64: ghcr.io/home-assistant/aarch64-base-debian:bookworm

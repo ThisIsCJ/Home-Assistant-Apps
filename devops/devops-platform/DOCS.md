@@ -81,7 +81,9 @@ By default the Supervisor builds the image locally on install (several minutes o
 
 ## Architecture support
 
-`amd64` and `aarch64` only — MongoDB does not publish packages for 32-bit ARM. On Raspberry Pi this means you need a 64-bit HA OS install.
+`amd64` and `aarch64`. MongoDB publishes no Debian apt packages for arm64, so the add-on takes the `mongod` binary from the official multi-arch `mongo:7.0` Docker image at build time.
+
+Note for ARM boards: MongoDB 7 requires an **ARMv8.2-class CPU**. A Raspberry Pi 5, ODROID N2+, or most recent aarch64 boards work; a **Raspberry Pi 4 does not** (mongod exits immediately with an illegal-instruction error). On a Pi 4, set `external_mongo_uri` to a MongoDB running elsewhere and the add-on works normally without the bundled database.
 
 ## Troubleshooting
 

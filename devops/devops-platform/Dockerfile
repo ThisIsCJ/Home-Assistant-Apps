@@ -9,26 +9,32 @@ COPY app/index.html app/vite.config.js ./
 COPY app/src ./src
 RUN npm run build
 
-# ── Stage 2: runtime — nginx + Node 20 + MongoDB 7 on the HA Debian base ─────
+# ── Stage 2: MongoDB binary donor ─────────────────────────────────────────────
+# MongoDB publishes Debian apt packages for x86_64 only, but the official
+# Docker image ships amd64 AND arm64 builds — so we take mongod from there.
+# (Both mongo:7.0/jammy and Debian bookworm use OpenSSL 3 and a compatible
+# glibc, so the binary runs unmodified.)
+FROM mongo:7.0 AS mongodb
+
+# ── Stage 3: runtime — nginx + Node 20 + MongoDB 7 on the HA Debian base ─────
 FROM $BUILD_FROM
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl gnupg nginx \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl gnupg nginx libcurl4 libssl3 \
  && mkdir -p /etc/apt/keyrings \
  && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
       | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
  && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
       > /etc/apt/sources.list.d/nodesource.list \
- && curl -fsSL https://pgp.mongodb.com/server-7.0.asc \
-      | gpg --dearmor -o /etc/apt/keyrings/mongodb-server-7.0.gpg \
- && echo "deb [signed-by=/etc/apt/keyrings/mongodb-server-7.0.gpg] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" \
-      > /etc/apt/sources.list.d/mongodb-org-7.0.list \
  && apt-get update \
- && apt-get install -y --no-install-recommends nodejs mongodb-org-server \
+ && apt-get install -y --no-install-recommends nodejs \
  && apt-get purge -y gnupg \
  && apt-get autoremove -y \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=mongodb /usr/bin/mongod /usr/bin/mongod
 
 WORKDIR /opt/app
 

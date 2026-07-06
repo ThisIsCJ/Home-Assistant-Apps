@@ -1,5 +1,5 @@
 name: DevOps Platform
-version: "1.1.0"
+version: "1.1.2"
 slug: devops_platform
 description: Self-hosted DevOps provisioning, monitoring and site-request platform
 arch:

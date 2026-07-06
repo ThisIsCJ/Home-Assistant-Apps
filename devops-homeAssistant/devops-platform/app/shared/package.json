@@ -1,9 +1,0 @@
-{
-  "name": "devops-platform-shared",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "Auth middleware shared by the api, monitor and provisioning services",
-  "dependencies": {
-    "jose": "^5.9.6"
-  }
-}

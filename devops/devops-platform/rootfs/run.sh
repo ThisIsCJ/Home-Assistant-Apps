@@ -59,14 +59,22 @@ else
     mongod --dbpath /data/mongodb --bind_ip 127.0.0.1 --port 27017 --quiet \
            --wiredTigerCacheSizeGB 0.25 \
            --logpath /var/log/mongod.log &
+    MONGOD_PID=$!
 
     for _ in $(seq 1 60); do
         mongo_up && break
+        # Fail fast if mongod already died (e.g. SIGILL on unsupported CPUs)
+        kill -0 "${MONGOD_PID}" 2>/dev/null || break
         sleep 1
     done
     if ! mongo_up; then
-        bashio::log.fatal "MongoDB did not come up within 60s"
-        cat /var/log/mongod.log 2>/dev/null | tail -20
+        bashio::log.fatal "MongoDB failed to start."
+        tail -20 /var/log/mongod.log 2>/dev/null
+        if ! kill -0 "${MONGOD_PID}" 2>/dev/null; then
+            bashio::log.fatal "Note: the bundled MongoDB needs an ARMv8.2-class CPU on aarch64" \
+                "(Raspberry Pi 5 or newer — a Pi 4 is not supported)." \
+                "Set the external_mongo_uri option to use an external database instead."
+        fi
         exit 1
     fi
     bashio::log.info "MongoDB is up"
