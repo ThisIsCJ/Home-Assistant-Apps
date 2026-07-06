@@ -212,6 +212,42 @@ input, select, textarea { font-family: inherit; }
 
 .topbar-spacer { flex: 1; min-width: 0; }
 
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.breadcrumb-item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--muted2);
+  white-space: nowrap;
+  transition: color 0.12s ease;
+}
+.breadcrumb-link:hover { color: var(--fg); text-decoration: underline; }
+.breadcrumb-current {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.breadcrumb-sep { color: var(--muted); flex-shrink: 0; }
+
 .icon-btn {
   display: inline-flex;
   align-items: center;

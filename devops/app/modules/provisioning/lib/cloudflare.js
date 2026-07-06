@@ -104,44 +104,29 @@ export async function verifyCloudflare(config = {}) {
   }
 
   try {
-    if (auth.mode === 'token') {
-      const accountId = clean(config.account_id);
-      let status = accountId ? 'unknown' : 'active';
-
-      if (accountId) {
-        const data = await cfFetch(config, `/accounts/${accountId}/tokens/verify`);
-        status = data?.result?.status || 'unknown';
-      }
-
-      const zones = await cfFetch(config, buildZonesQuery(config, { per_page: 1 }));
-      const count = zones?.result_info?.count ?? zones?.result?.length ?? 0;
-
-      if (count === 0) {
-        return {
-          ok: false,
-          message: 'Cloudflare token is valid, but it cannot see any zones. Grant Zone:Read and DNS:Edit for the target zone, or use the correct Cloudflare account.',
-        };
-      }
-
-      return {
-        ok: status === 'active',
-        message: status === 'active'
-          ? `Cloudflare API token is valid and active. Found ${count} accessible zone${count === 1 ? '' : 's'}.`
-          : `Cloudflare API token can access ${count} zone${count === 1 ? '' : 's'}, but token status is ${status}.`,
-      };
-    }
+    // Listing zones is the capability the app actually uses (it's exactly what
+    // domain sync does), so treat it as the source of truth for the test. The
+    // previous account-scoped /tokens/verify call reported "Invalid API Token"
+    // for tokens that are valid for zones but not scoped to verify themselves —
+    // so a token that syncs fine would fail the test. Don't do that.
+    const isToken = auth.mode === 'token';
+    const kind = isToken ? 'API token' : 'Global API key';
 
     const data = await cfFetch(config, buildZonesQuery(config, { per_page: 1 }));
     const count = data?.result_info?.count ?? data?.result?.length ?? 0;
+
     if (count === 0) {
       return {
         ok: false,
-        message: 'Cloudflare credentials are valid, but no zones are visible to this account.',
+        message: isToken
+          ? 'Cloudflare token is valid, but it cannot see any zones. Grant Zone:Read and DNS:Edit for the target zone, or use the correct Cloudflare account.'
+          : 'Cloudflare credentials are valid, but no zones are visible to this account.',
       };
     }
+
     return {
       ok: true,
-      message: `Cloudflare Global API key is valid. Found ${count} accessible zone${count === 1 ? '' : 's'}.`,
+      message: `Cloudflare ${kind} is valid. Found ${count} accessible zone${count === 1 ? '' : 's'}.`,
     };
   } catch (error) {
     return { ok: false, message: error.message };

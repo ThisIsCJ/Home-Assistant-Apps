@@ -1,8 +1,54 @@
 import { useState, useRef, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { resolveAssetUrl } from '../lib/env.js';
 import { Icons } from './Icons.jsx';
+
+// Human labels for admin sub-pages, used to build the breadcrumb trail.
+const ADMIN_LABELS = {
+  branding:       'Branding',
+  authentication: 'Authentication',
+  database:       'Database',
+  domains:        'Domains',
+  hosts:          'Hosts',
+  users:          'Users',
+  teams:          'Teams',
+  integrations:   'Integrations',
+  runs:           'Automation Runs',
+  audit:          'Audit Log',
+  discovery:      'Discovery',
+};
+
+// Clickable breadcrumb trail. For admin routes this renders "Admin › Page" with
+// "Admin" linking back to the overview; otherwise it falls back to the plain
+// page title.
+function Breadcrumbs({ pathname, title }) {
+  const navigate = useNavigate();
+
+  if (!pathname.startsWith('/admin')) {
+    return <span className="topbar-title">{title}</span>;
+  }
+
+  const seg = pathname.split('/').filter(Boolean); // e.g. ['admin', 'hosts']
+  const crumbs = [{ label: 'Admin', to: '/admin' }];
+  if (seg[1]) crumbs.push({ label: ADMIN_LABELS[seg[1]] || title || seg[1] });
+
+  return (
+    <nav className="breadcrumbs" aria-label="Breadcrumb">
+      {crumbs.map((crumb, i) => {
+        const isLast = i === crumbs.length - 1;
+        return (
+          <span key={crumb.to || crumb.label} className="breadcrumb-item">
+            {crumb.to && !isLast
+              ? <button type="button" className="breadcrumb-link" onClick={() => navigate(crumb.to)}>{crumb.label}</button>
+              : <span className="breadcrumb-current">{crumb.label}</span>}
+            {!isLast && <Icons.ChevronRight size={13} className="breadcrumb-sep" />}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
 
 const USER_NAV = [
   { path: '/app',              icon: Icons.Dashboard,  label: 'Dashboard',       exact: true },
@@ -76,6 +122,7 @@ export function Shell({ children, title }) {
   const { profile, logout, appConfig } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const adminGroup = appConfig?.adminGroup || '';
   const isAdmin = profile?.isAdmin ?? Boolean(adminGroup && profile?.groups?.includes(adminGroup));
@@ -133,7 +180,7 @@ export function Shell({ children, title }) {
             onClick={e => { e.stopPropagation(); setMobileOpen(o => !o); }}>
             <Icons.Menu size={15} />
           </button>
-          <span className="topbar-title">{title}</span>
+          <Breadcrumbs pathname={location.pathname} title={title} />
           <div className="topbar-spacer" />
           <AvatarMenu profile={profile} isAdmin={isAdmin} navigate={navigate} logout={logout} haMode={haMode} />
         </header>

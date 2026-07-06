@@ -1,8 +1,22 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider.jsx';
 import { api } from '../lib/api.js';
 import { Icons } from '../components/Icons.jsx';
+
+// Tracks the app's mobile breakpoint (matches the 599px cutoff in styles.css).
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 599px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 599px)');
+    const handler = e => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -429,6 +443,7 @@ export function Status() {
   const { accessToken, profile, appConfig } = useAuth();
   const navigate = useNavigate();
   const isAdmin = Boolean(profile?.groups?.includes(appConfig?.adminGroup || ''));
+  const isMobile = useIsMobile();
 
   const [sites, setSites]       = useState([]);
   const [globalConfig, setGlobalConfig] = useState({ interval_seconds: 300, alert_threshold: 3 });
@@ -483,6 +498,18 @@ export function Status() {
   const downCnt      = sites.filter(s => overallStatus(s) === 'down').length;
 
   const selectedSite = sites.find(s => s.request_id === selectedId) || null;
+
+  const renderDetail = (site) => (
+    <DetailPanel
+      site={site}
+      isAdmin={isAdmin}
+      onToggle={handleToggle}
+      onCheckNow={handleCheckNow}
+      onClose={() => setSelectedId(null)}
+      accessToken={accessToken}
+      navigate={navigate}
+    />
+  );
 
   return (
     <div>
@@ -574,26 +601,25 @@ export function Status() {
         <>
           <div className="sc-grid">
             {visible.map(site => (
-              <SiteCard
-                key={site.request_id}
-                site={site}
-                selected={selectedId === site.request_id}
-                onClick={() => setSelectedId(id => id === site.request_id ? null : site.request_id)}
-              />
+              <Fragment key={site.request_id}>
+                <SiteCard
+                  site={site}
+                  selected={selectedId === site.request_id}
+                  onClick={() => setSelectedId(id => id === site.request_id ? null : site.request_id)}
+                />
+                {/* On mobile the detail expands directly beneath the clicked
+                    card (full-width row); on larger screens it renders once
+                    below the whole grid. */}
+                {isMobile && selectedId === site.request_id && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    {renderDetail(site)}
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
 
-          {selectedSite && (
-            <DetailPanel
-              site={selectedSite}
-              isAdmin={isAdmin}
-              onToggle={handleToggle}
-              onCheckNow={handleCheckNow}
-              onClose={() => setSelectedId(null)}
-              accessToken={accessToken}
-              navigate={navigate}
-            />
-          )}
+          {!isMobile && selectedSite && renderDetail(selectedSite)}
         </>
       )}
     </div>

@@ -14,6 +14,29 @@ function relTime(ts) {
   return `${Math.floor(diff / 3_600_000)}h ago`;
 }
 
+// Build a CSV from `columns` ({ label, value(row) }) over `rows` and download it.
+function downloadCsv(filename, columns, rows) {
+  const escape = (v) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    columns.map(c => escape(c.label)).join(','),
+    ...rows.map(r => columns.map(c => escape(c.value(r))).join(',')),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function StatusBadge({ status }) {
   const map = {
     matched:  { cls: 'badge-green',  icon: <Icons.Check size={10} />,         label: 'Matched' },
@@ -99,6 +122,20 @@ function NginxTable({ entries, navigate, onAdopt, adopting, adoptResults }) {
   const noHostCount    = entries.filter(e => e.status === 'no_host').length;
   const untrackedCount = entries.filter(e => e.status === 'matched' && !e.tracked).length;
 
+  const exportCsv = () => downloadCsv(
+    `discovery-nginx-${csvDate()}.csv`,
+    [
+      { label: 'FQDN',         value: e => e.fqdn || (e.fqdns || []).join(' ') },
+      { label: 'Forward host', value: e => e.forward_host },
+      { label: 'Port',         value: e => e.forward_port },
+      { label: 'Enabled',      value: e => (e.enabled ? 'yes' : 'no') },
+      { label: 'Status',       value: e => e.status },
+      { label: 'Tracked',      value: e => (e.tracked ? 'yes' : 'no') },
+      { label: 'Matched host', value: e => e.host_name || '' },
+    ],
+    visible,
+  );
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
@@ -112,6 +149,9 @@ function NginxTable({ entries, navigate, onAdopt, adopting, adoptResults }) {
           ].map(([v, l]) => (
             <button key={v} className={`btn btn-sm ${filter === v ? 'btn-pri' : 'btn-sec'}`} onClick={() => setFilter(v)}>{l}</button>
           ))}
+          <button className="btn btn-sm btn-sec" onClick={exportCsv} disabled={!visible.length} title="Export the rows in view to CSV">
+            <Icons.Download size={12} /> CSV
+          </button>
         </div>
       </div>
 
@@ -224,6 +264,20 @@ function CloudflareTable({ entries, publicIp }) {
 
   const noNginxCount = entries.filter(e => e.status === 'no_nginx').length;
 
+  const exportCsv = () => downloadCsv(
+    `discovery-cloudflare-${csvDate()}.csv`,
+    [
+      { label: 'FQDN',           value: e => e.fqdn },
+      { label: 'Zone',           value: e => e.zone_name },
+      { label: 'Type',           value: e => e.type },
+      { label: 'Content',        value: e => e.content },
+      { label: 'Proxied',        value: e => (e.proxied ? 'yes' : 'no') },
+      { label: 'Status',         value: e => e.status },
+      { label: 'NGINX upstream', value: e => e.forward_host || '' },
+    ],
+    visible,
+  );
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
@@ -234,6 +288,9 @@ function CloudflareTable({ entries, publicIp }) {
           {[['all', 'All'], ['ok', 'In NGINX'], ['no_nginx', 'No route']].map(([v, l]) => (
             <button key={v} className={`btn btn-sm ${filter === v ? 'btn-pri' : 'btn-sec'}`} onClick={() => setFilter(v)}>{l}</button>
           ))}
+          <button className="btn btn-sm btn-sec" onClick={exportCsv} disabled={!visible.length} title="Export the rows in view to CSV">
+            <Icons.Download size={12} /> CSV
+          </button>
         </div>
       </div>
 

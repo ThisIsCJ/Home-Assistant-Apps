@@ -26,18 +26,21 @@ function dotClass(st) {
   return 'dh-pending';
 }
 
-function SiteHealthSection({ accessToken }) {
+function SiteHealthSection({ accessToken, isAdmin }) {
   const navigate = useNavigate();
   const [sites, setSites]     = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!accessToken) return;
-    api.get('/monitor/sites', accessToken)
+    // Non-admins see only the sites they (or their team) have access to; admins
+    // request scope=all to see every monitored site on the platform.
+    const query = isAdmin ? '?scope=all' : '';
+    api.get(`/monitor/sites${query}`, accessToken)
       .then(d => setSites(d.sites || []))
       .catch(() => setSites([]))
       .finally(() => setLoading(false));
-  }, [accessToken]);
+  }, [accessToken, isAdmin]);
 
   // Only show monitored sites in the dashboard preview
   const monitored = (sites || []).filter(s => s.monitoring_enabled);
@@ -47,7 +50,12 @@ function SiteHealthSection({ accessToken }) {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="card-header">
-        <span className="card-title">Site Health</span>
+        <span className="card-title">
+          Site Health
+          <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: 6 }}>
+            {isAdmin ? '· all sites' : '· your sites'}
+          </span>
+        </span>
         <button className="btn btn-sm btn-sec" onClick={() => navigate('/app/status')}>View all</button>
       </div>
       <div className="card-body">
@@ -87,7 +95,8 @@ function SiteHealthSection({ accessToken }) {
 }
 
 export function Dashboard() {
-  const { accessToken, profile } = useAuth();
+  const { accessToken, profile, appConfig } = useAuth();
+  const isAdmin = profile?.isAdmin ?? Boolean(appConfig?.adminGroup && profile?.groups?.includes(appConfig.adminGroup));
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [stats, setStats]       = useState({ total: 0, success: 0, failed: 0, pending: 0 });
@@ -153,7 +162,7 @@ export function Dashboard() {
         </div>
       )}
 
-      {accessToken && <SiteHealthSection accessToken={accessToken} />}
+      {accessToken && <SiteHealthSection accessToken={accessToken} isAdmin={isAdmin} />}
 
       <div className="card">
         <div className="card-header">
