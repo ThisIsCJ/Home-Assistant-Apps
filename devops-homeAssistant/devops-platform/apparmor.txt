@@ -1,0 +1,69 @@
+#include <tunables/global>
+
+profile devops_platform flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Capabilities
+  capability chown,
+  capability dac_override,
+  capability fowner,
+  capability fsetid,
+  capability kill,
+  capability net_bind_service,
+  capability setgid,
+  capability setuid,
+  capability sys_resource,
+
+  # Networking (nginx, node services, mongod, outbound checks)
+  network inet tcp,
+  network inet udp,
+  network inet6 tcp,
+  network inet6 udp,
+  network unix stream,
+
+  signal (send) set=(kill,term,int,hup,cont),
+
+  # S6-Overlay init
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /usr/sbin/** ix,
+  /usr/lib/bashio/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+  /tmp/{,**} rwk,
+
+  # Add-on data (MongoDB datadir, uploads, options.json)
+  /data/{,**} rwk,
+
+  # Application code and frontend bundle (env-config.js is written at start)
+  /opt/app/{,**} rwk,
+  /opt/app/api/** ix,
+  /opt/app/modules/** ix,
+  /opt/app/shared/** ix,
+
+  # Runtime scratch
+  /var/log/{,**} rw,
+  /var/lib/nginx/{,**} rw,
+  /etc/nginx/** r,
+
+  # System info the runtimes read
+  /proc/{,**} r,
+  /sys/fs/cgroup/{,**} r,
+  /sys/devices/system/cpu/{,**} r,
+  /sys/devices/system/node/{,**} r,
+  /sys/kernel/mm/transparent_hugepage/{,**} r,
+  /etc/passwd r,
+  /etc/group r,
+  /etc/nsswitch.conf r,
+  /etc/hosts r,
+  /etc/resolv.conf r,
+  /etc/ssl/{,**} r,
+  /usr/share/{,**} r,
+}
