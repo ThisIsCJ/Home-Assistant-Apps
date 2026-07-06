@@ -109,8 +109,16 @@ export function Branding() {
       adminGroup:  appConfig.adminGroup || '',
     });
     setNavItems(navFromOrder(appConfig.navOrder));
-    setAdminUsers(appConfig.adminUsers || []);
   }, [appConfig]);
+
+  // The admin roster is no longer exposed on the public config; fetch it from
+  // the authenticated admin-only endpoint.
+  useEffect(() => {
+    if (!accessToken) return;
+    api.get('/config/admin-users', accessToken)
+      .then(r => setAdminUsers(r.adminUsers || []))
+      .catch(() => {});
+  }, [accessToken]);
 
   const moveNav = (index, dir) => {
     setNavItems(items => {

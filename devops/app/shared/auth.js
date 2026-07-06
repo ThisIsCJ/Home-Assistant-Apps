@@ -63,6 +63,7 @@ function normalizeUser(info = {}) {
 export function createAuthMiddleware({ getDb, persistUsers = false }) {
   const tokenCache = new Map();
   const TOKEN_CACHE_TTL = 60_000;
+  const TOKEN_CACHE_MAX = 1000; // bound memory against a flood of distinct tokens
 
   const discoveryCache = new Map();
   const DISCOVERY_TTL = 10 * 60_000;
@@ -125,12 +126,16 @@ export function createAuthMiddleware({ getDb, persistUsers = false }) {
     );
   }
 
-  async function verifyWithProvider(token, authority) {
+  async function verifyWithProvider(token, authority, expectedAudience) {
     const discovery = await getDiscovery(authority);
     if (!discovery?.jwks_uri || !discovery?.issuer) return null;
     const jwks = getJwks(discovery.jwks_uri);
     try {
-      const { payload } = await jwtVerify(token, jwks, { issuer: discovery.issuer });
+      const options = { issuer: discovery.issuer };
+      // Bind the token to this provider's client so a token minted by the same
+      // IdP for a different application cannot authenticate here.
+      if (expectedAudience) options.audience = expectedAudience;
+      const { payload } = await jwtVerify(token, jwks, options);
       return normalizeUser(payload);
     } catch (err) {
       if (err?.code === 'ERR_JWT_EXPIRED') throw err;
@@ -163,7 +168,7 @@ export function createAuthMiddleware({ getDb, persistUsers = false }) {
         try {
           const discovery = await getDiscovery(provider.authority);
           if (iss && discovery?.issuer && discovery.issuer !== iss) continue;
-          const user = await verifyWithProvider(token, provider.authority);
+          const user = await verifyWithProvider(token, provider.authority, provider.client_id);
           if (user) return user;
           // JWT verify failed, try userinfo
           return await loadUserFromUserinfo(token, provider.authority);
@@ -187,9 +192,17 @@ export function createAuthMiddleware({ getDb, persistUsers = false }) {
       return user;
     }
 
-    // Last resort: decode without verification (dev/no-auth mode)
-    const decoded = decodeJwtPayload(token);
-    if (decoded?.sub) return normalizeUser(decoded);
+    // Optional insecure decode for LOCAL DEVELOPMENT ONLY. Off unless
+    // AUTH_INSECURE_DECODE=1 is explicitly set. When enabled it trusts
+    // unverified token claims (including group membership), so it must never be
+    // set in production.
+    if (process.env.AUTH_INSECURE_DECODE === '1') {
+      const decoded = decodeJwtPayload(token);
+      if (decoded?.sub) {
+        console.warn('[auth] AUTH_INSECURE_DECODE enabled — trusting UNVERIFIED token claims');
+        return normalizeUser(decoded);
+      }
+    }
     throw new Error('Unable to authenticate token: no matching provider found');
   }
 
@@ -216,6 +229,10 @@ export function createAuthMiddleware({ getDb, persistUsers = false }) {
     try {
       const user = await authenticateToken(token);
       await persistUser(user);
+      // Evict the oldest entry when the cache is full (insertion-ordered Map).
+      if (tokenCache.size >= TOKEN_CACHE_MAX) {
+        tokenCache.delete(tokenCache.keys().next().value);
+      }
       tokenCache.set(token, { user, ts: Date.now() });
       req.user = user;
       next();

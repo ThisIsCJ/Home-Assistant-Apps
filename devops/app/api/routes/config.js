@@ -38,7 +38,8 @@ async function buildPublicConfig() {
       ? (process.env.ADMIN_GROUP || '')
       : (site?.adminGroup || process.env.ADMIN_GROUP || ''),
     userGroup: site?.userGroup || process.env.VITE_USER_GROUP || '',
-    adminUsers: site?.adminUsers || [],
+    // The admin roster is NOT exposed on the public (unauthenticated) endpoint.
+    // Per-user admin status is returned by the authenticated /whoami endpoint.
     navOrder: site?.navOrder || null,
     authProviders: HA_INGRESS ? [] : providers.map(p => ({
       provider: p._id,
@@ -73,7 +74,6 @@ router.get('/public', async (req, res, next) => {
       accentColor: null,
       adminGroup: process.env.ADMIN_GROUP || '',
       userGroup: process.env.VITE_USER_GROUP || '',
-      adminUsers: [],
       authProviders: [],
       onboardingComplete: HA_INGRESS,
       haIngress: HA_INGRESS,
@@ -82,20 +82,49 @@ router.get('/public', async (req, res, next) => {
   }
 });
 
+// Whether the given user has platform-admin rights. Mirrors the server-side
+// enforcement in shared/requireAdmin.js (site.adminUsers by email, or group
+// membership) so the frontend can gate UI without the public endpoint leaking
+// the admin roster.
+async function computeIsAdmin(db, user) {
+  if (!user) return false;
+  if (db) {
+    const site = await db.collection('site').findOne({ _id: 'global' }, { projection: { adminUsers: 1, adminGroup: 1 } });
+    if (user.email && site?.adminUsers?.includes(user.email)) return true;
+    const group = HA_INGRESS
+      ? (process.env.ADMIN_GROUP || '')
+      : (site?.adminGroup || process.env.ADMIN_GROUP || '');
+    return Boolean(group && user.groups?.includes(group));
+  }
+  const group = process.env.ADMIN_GROUP || '';
+  return Boolean(group && user.groups?.includes(group));
+}
+
 // Current user — used by the frontend in HA ingress mode, where there is no
-// OIDC token to derive a profile from.
-router.get('/whoami', requireAuth, (req, res) => {
-  res.json(req.user);
+// OIDC token to derive a profile from. Includes a server-computed isAdmin flag.
+router.get('/whoami', requireAuth, async (req, res) => {
+  const isAdmin = await computeIsAdmin(getDb(), req.user);
+  res.json({ ...req.user, isAdmin });
 });
 
-// Bypass auth when no active providers exist (can't authenticate without a provider)
-// or when onboarding is not yet complete.
+// Gate for setup/config endpoints.
+//
+// Under HA ingress the Supervisor authenticates every request, so these are
+// ALWAYS admin-only — this closes the previous hole where "no active auth
+// provider" (always true in ingress mode) left them open to any user.
+//
+// In standalone (non-ingress) mode they stay open only during the initial
+// setup wizard — i.e. until onboarding is marked complete — because there is no
+// way to authenticate before an auth provider is configured. Once onboarding
+// completes, they lock to authenticated admins. Operators should complete setup
+// promptly, as this first-run window is unauthenticated by necessity.
 async function requireSetupOrAdmin(req, res, next) {
   try {
+    if (HA_INGRESS) {
+      return requireAuth(req, res, () => requireAdmin(req, res, next));
+    }
     const db = getDb();
     if (!db) return next();
-    const activeCount = await db.collection('auth_providers').countDocuments({ active: true });
-    if (activeCount === 0) return next();
     const onboarding = await db.collection('onboarding').findOne({ _id: 'status' });
     if (!onboarding?.complete) return next();
     requireAuth(req, res, () => requireAdmin(req, res, next));
@@ -199,17 +228,18 @@ router.delete('/auth-providers/:provider', requireSetupOrAdmin, async (req, res)
   res.json({ ok: true });
 });
 
-// Bootstrap first admin — no group config required; only works pre-setup-complete or when adminUsers is empty
+// Bootstrap first admin — usable only during a genuine first run, and only
+// once. Never available under HA ingress, where platform-admin rights come from
+// the add-on's admin_users option.
 router.post('/bootstrap-admin', requireAuth, async (req, res) => {
+  if (HA_INGRESS) {
+    return res.status(403).json({ message: 'Admin access is managed by the add-on admin_users option.' });
+  }
   const db = getDb();
   if (!db) return res.status(503).json({ message: 'Database not connected' });
 
-  const [onboarding, site] = await Promise.all([
-    db.collection('onboarding').findOne({ _id: 'status' }),
-    db.collection('site').findOne({ _id: 'global' }),
-  ]);
-
-  if (onboarding?.complete && (site?.adminUsers?.length ?? 0) > 0) {
+  const onboarding = await db.collection('onboarding').findOne({ _id: 'status' });
+  if (onboarding?.complete || onboarding?.admin_bootstrapped) {
     return res.status(403).json({ message: 'Use Admin → Branding to manage access.' });
   }
 
@@ -220,9 +250,24 @@ router.post('/bootstrap-admin', requireAuth, async (req, res) => {
     { $addToSet: { adminUsers: req.user.email } },
     { upsert: true }
   );
+  // One-shot: mark bootstrap consumed so it can never be re-triggered.
+  await db.collection('onboarding').updateOne(
+    { _id: 'status' },
+    { $set: { admin_bootstrapped: true } },
+    { upsert: true }
+  );
 
   invalidatePublicConfigCache();
   res.json({ ok: true, email: req.user.email });
+});
+
+// Admin roster — authenticated, admin-only (replaces the field previously
+// exposed on the public config for the Branding editor).
+router.get('/admin-users', requireSetupOrAdmin, async (req, res) => {
+  const db = getDb();
+  if (!db) return res.json({ adminUsers: [] });
+  const site = await db.collection('site').findOne({ _id: 'global' }, { projection: { adminUsers: 1 } });
+  res.json({ adminUsers: site?.adminUsers || [] });
 });
 
 // Save site/branding config

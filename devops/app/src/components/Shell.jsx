@@ -78,8 +78,7 @@ export function Shell({ children, title }) {
   const navigate = useNavigate();
 
   const adminGroup = appConfig?.adminGroup || '';
-  const adminUsers = appConfig?.adminUsers || [];
-  const isAdmin = adminUsers.includes(profile?.email) || (adminGroup && profile?.groups?.includes(adminGroup));
+  const isAdmin = profile?.isAdmin ?? Boolean(adminGroup && profile?.groups?.includes(adminGroup));
   // Under Home Assistant ingress the session belongs to HA — signing out here
   // is meaningless, so the sign-out controls are hidden.
   const haMode = Boolean(appConfig?.haIngress);

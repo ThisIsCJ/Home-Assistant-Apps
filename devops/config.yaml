@@ -23,7 +23,11 @@ ingress: true
 ingress_port: 8099
 panel_icon: mdi:rocket-launch
 panel_title: DevOps
-panel_admin: true
+# Show the panel to all Home Assistant users, not just HA administrators.
+# Platform-admin rights inside the app are governed separately by the
+# `admin_users` option (see below) — HA users not listed there get regular
+# (non-admin) portal access.
+panel_admin: false
 # Allow the add-on to call the Supervisor API so it can restart itself when the
 # database connection string is changed from within the app (Admin → Database).
 hassio_api: true

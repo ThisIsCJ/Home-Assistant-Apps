@@ -1,5 +1,24 @@
 # Security Remediation Plan
 
+> **Status (implemented 2026-07-06).** All items below have been actioned. Two
+> were intentionally adapted rather than applied verbatim — see the notes on
+> item 5 (nginx headers) and item 8 (DB export). Frontend/backend changes were
+> made but not build-tested (no Node toolchain in the working environment); run
+> `vite build` and exercise the setup + admin flows before shipping.
+>
+> - **P0.1** requireSetupOrAdmin — DONE (ingress: always admin; standalone: open only until onboarding completes).
+> - **P0.2** unverified-JWT fallback — DONE (removed; gated behind off-by-default `AUTH_INSECURE_DECODE=1`).
+> - **P0.3** bootstrap-admin — DONE (blocked under ingress; one-shot `admin_bootstrapped` flag otherwise).
+> - **P1.4** upload XSS — DONE (server-chosen extension from mime allowlist, SVG dropped, `nosniff` + CSP on serve).
+> - **P1.5** nginx header strip — ADAPTED (documented, not blanked; blanking would discard the Supervisor's own identity and break auth — network isolation already prevents client injection).
+> - **P1.6** JWT audience — DONE (`audience: client_id` in jwtVerify for DB-configured providers).
+> - **P2.7** admin-roster disclosure — DONE (removed from public config; per-user `isAdmin` via authenticated `/whoami`; roster via admin-only `/config/admin-users`).
+> - **P2.8** DB export secrets — ADAPTED (kept: a backup must contain secrets to be restorable; treat the file as sensitive. Import already validates shape + collection allowlist).
+> - **P3** hardening — DONE (100kb body limit + generic 5xx errors on all three services, `requireAdmin` null-guard, token-cache LRU cap, upload file-count cap).
+
+---
+
+
 Findings from the security review of the DevOps Platform add-on, ordered by
 priority. Each item lists the file(s), the root cause, and the concrete fix.
 

@@ -8,8 +8,8 @@ const app  = express();
 const PORT = process.env.PORT || 4200;
 const HOST = process.env.BIND_HOST || '0.0.0.0';
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, module: 'provisioning' }));
 
@@ -22,7 +22,8 @@ app.use('/api', (_req, res) => res.status(404).json({ message: 'Not found' }));
 
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
+  const status = err.status || 500;
+  res.status(status).json({ message: status < 500 ? (err.message || 'Request failed') : 'Internal server error' });
 });
 
 async function start() {

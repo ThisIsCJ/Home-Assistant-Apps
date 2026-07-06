@@ -23,7 +23,9 @@ function extractProfile(user) {
   const p = user.profile;
   const name = p.name || p.preferred_username || p.email || 'User';
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  return { sub: p.sub, name, email: p.email || '', initials, groups: p.groups || [] };
+  // isAdmin is server-computed (present in HA ingress via /whoami); undefined for
+  // OIDC users, where RequireAuth/Shell fall back to a group-membership check.
+  return { sub: p.sub, name, email: p.email || '', initials, groups: p.groups || [], isAdmin: p.isAdmin };
 }
 
 export function AuthProvider({ children }) {
@@ -86,7 +88,7 @@ export function AuthProvider({ children }) {
           if (cancelled) return;
           await applyUser({
             access_token: HA_INGRESS_TOKEN,
-            profile: { sub: me.id, name: me.name, email: me.email, groups: me.groups || [] },
+            profile: { sub: me.id, name: me.name, email: me.email, groups: me.groups || [], isAdmin: me.isAdmin },
           });
         } catch (err) {
           console.error('[auth] HA ingress whoami failed:', err?.message);
@@ -221,9 +223,8 @@ export function RequireAuth({ children, adminOnly = false }) {
   }
 
   const adminGroup = appConfig.adminGroup;
-  const adminUsers = appConfig.adminUsers || [];
   const groups     = profile?.groups || [];
-  const isAdmin    = adminUsers.includes(profile?.email) || (adminGroup && groups.includes(adminGroup));
+  const isAdmin    = profile?.isAdmin ?? Boolean(adminGroup && groups.includes(adminGroup));
 
   if (adminOnly && !isAdmin) {
     return <Unauthorized />;

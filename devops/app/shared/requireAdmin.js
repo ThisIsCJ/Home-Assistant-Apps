@@ -22,10 +22,11 @@ export function createRequireAdmin({ getDb }) {
   }
 
   async function requireAdmin(req, res, next) {
+    if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
     const db = getDb();
     if (db) {
       const site = await db.collection('site').findOne({ _id: 'global' }, { projection: { adminUsers: 1 } });
-      if (site?.adminUsers?.includes(req.user.email)) return next();
+      if (req.user.email && site?.adminUsers?.includes(req.user.email)) return next();
     }
     const adminGroup = await getAdminGroup();
     if (!adminGroup || !req.user?.groups?.includes(adminGroup)) {
