@@ -1,20 +1,11 @@
-# DevOps Platform — Home Assistant Add-on Repository
+# DevOps Platform Add-on
 
-Home Assistant add-on packaging of the [DevOps Platform](https://github.com/csaba/devops-platform) — a self-hosted provisioning, monitoring and site-request portal.
+Self-hosted DevOps provisioning, monitoring and site-request platform, packaged as a single Home Assistant add-on.
 
-## Installation
+- **Web UI in the HA sidebar** via ingress — no ports to open, no reverse proxy to configure.
+- **Authentication is handled by Home Assistant.** By default every HA user who can open the panel is a platform admin; set the `admin_users` option to restrict admin rights to specific HA usernames.
+- **MongoDB is bundled** and stores its data in the add-on's persistent `/data` volume (cold backups keep it consistent). Optionally point the add-on at an external MongoDB instead.
+- **Hardened**: backend services and the database are reachable only through nginx from the HA ingress gateway; an AppArmor profile confines the container; a watchdog restarts the add-on if it stops responding.
+- Includes the core API, the site **monitor** module (scheduled checks) and the **provisioning** module (n8n / Nginx Proxy Manager / Cloudflare integrations, configured in the Admin UI).
 
-1. In Home Assistant go to **Settings → Add-ons → Add-on Store**.
-2. Open the **⋮** menu (top right) → **Repositories**, and add the URL of this repository.
-3. Find **DevOps Platform** in the store list and click **Install**.
-4. Start the add-on, then click **Open Web UI** (or use the **DevOps** entry in the sidebar).
-
-## Add-ons
-
-| Add-on | Description |
-|--------|-------------|
-| [DevOps Platform](devops-platform/) | Provisioning, monitoring and site-request platform (nginx + Node.js services + MongoDB in a single container, served through HA ingress) |
-
-## Local development
-
-The original multi-container (docker-compose + Authentik OIDC) variant of this app lives in `devops-platform` repo; this repository is the Home Assistant conversion. The differences are documented in [devops-platform/DOCS.md](devops-platform/DOCS.md).
+See [DOCS.md](DOCS.md) for configuration details.
