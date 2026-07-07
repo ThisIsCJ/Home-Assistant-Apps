@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { Admin } from './pages/Admin';
 import { Cookbook } from './pages/Cookbook';
 import { Icons } from './components/Icons';
 import { api } from './lib/api';
@@ -16,7 +17,7 @@ function initialTheme() {
 
 export default function App() {
   const [theme, setTheme] = useState(initialTheme);
-  const [me, setMe] = useState({ id: 'me', name: 'You' });
+  const [me, setMe] = useState({ id: 'me', name: 'You', isAdmin: false });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -25,7 +26,7 @@ export default function App() {
 
   useEffect(() => {
     api.get('/whoami').then((res) => {
-      if (res?.id) setMe({ id: res.id, name: res.name || 'You' });
+      if (res?.id) setMe({ id: res.id, name: res.name || 'You', isAdmin: !!res.isAdmin });
     }).catch(() => { /* fall back to the default local identity */ });
   }, []);
 
@@ -42,15 +43,22 @@ export default function App() {
           <Icons.FileText size={18} />
           <span>Cookbook</span>
         </div>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-          title="Toggle theme"
-          aria-label="Toggle color theme"
-        >
-          {theme === 'dark' ? <Icons.Sun size={15} /> : <Icons.Moon size={15} />}
-        </button>
+        <div className="cb-topbar__actions">
+          {me.isAdmin && (
+            <Link className="btn" to="/admin" title="Admin panel">
+              <Icons.Lock size={15} /> Admin
+            </Link>
+          )}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title="Toggle theme"
+            aria-label="Toggle color theme"
+          >
+            {theme === 'dark' ? <Icons.Sun size={15} /> : <Icons.Moon size={15} />}
+          </button>
+        </div>
       </header>
       <main className="cb-main">
         <Routes>
@@ -58,6 +66,7 @@ export default function App() {
           <Route path="/cookbook/new" element={page} />
           <Route path="/cookbook/import" element={page} />
           <Route path="/cookbook/:recipeId" element={page} />
+          <Route path="/admin" element={<Admin me={me} />} />
           <Route path="*" element={<Navigate to="/cookbook" replace />} />
         </Routes>
       </main>

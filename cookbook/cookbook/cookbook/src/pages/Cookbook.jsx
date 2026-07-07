@@ -151,7 +151,7 @@ export function Cookbook({ accessToken, user, dbUser, siteConfig }) {
 
   const deleteRecipe = async () => {
     if (!recipeId || !activeRecipe.canEdit) return;
-    if (!window.confirm('Delete this recipe?')) return;
+    if (!window.confirm('Delete this recipe? It will be archived, and an admin can restore or permanently delete it.')) return;
 
     setRecipeError('');
     try {

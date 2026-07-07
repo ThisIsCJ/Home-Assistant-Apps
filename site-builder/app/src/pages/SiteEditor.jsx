@@ -8,6 +8,22 @@ import { Icons } from '../components/Icons.jsx';
 // e.g. editing "blog/post.html" → "../assets/x.png".
 const rootPrefix = (filePath) => '../'.repeat(filePath.split('/').length - 1);
 
+const FONTS = [
+  'Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman',
+  'Garamond', 'Courier New', 'Impact', 'system-ui',
+];
+// execCommand fontSize levels 1–7.
+const SIZES = [
+  { v: '1', label: 'Tiny' }, { v: '2', label: 'Small' }, { v: '3', label: 'Normal' },
+  { v: '4', label: 'Medium' }, { v: '5', label: 'Large' }, { v: '6', label: 'X-Large' },
+  { v: '7', label: 'Huge' },
+];
+const BLOCKS = [
+  { v: 'P', label: 'Paragraph' }, { v: 'H1', label: 'Heading 1' }, { v: 'H2', label: 'Heading 2' },
+  { v: 'H3', label: 'Heading 3' }, { v: 'H4', label: 'Heading 4' }, { v: 'BLOCKQUOTE', label: 'Quote' },
+  { v: 'PRE', label: 'Code block' },
+];
+
 function PushModal({ site, onClose, onPushed }) {
   const { toast } = useApp();
   const [message, setMessage] = useState('Update site content from Home Assistant editor');
@@ -70,9 +86,20 @@ function PushModal({ site, onClose, onPushed }) {
   );
 }
 
-function ImageModal({ current, onApply, onClose, siteId, filePath }) {
+// Upload an image into the site (draft) and/or pick a URL. Used both for
+// replacing an existing image and inserting a new one. Uploaded files go to
+// a configurable folder inside the site, so they are committed on push.
+function useImageFolder(siteId) {
+  const key = `se_imgdir_${siteId}`;
+  const [folder, setFolder] = useState(() => localStorage.getItem(key) || 'assets/uploads');
+  const remember = (f) => { localStorage.setItem(key, f); setFolder(f); };
+  return [folder, remember];
+}
+
+function ImageModal({ mode, current, onApply, onClose, siteId, filePath }) {
   const { toast } = useApp();
   const [url, setUrl] = useState(current || '');
+  const [folder, setFolder] = useImageFolder(siteId);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
 
@@ -80,8 +107,10 @@ function ImageModal({ current, onApply, onClose, siteId, filePath }) {
     setBusy(true);
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_');
-      const dest = `assets/uploads/${Date.now()}-${safeName}`;
+      const dir = folder.replace(/^\/+|\/+$/g, '') || 'assets/uploads';
+      const dest = `${dir}/${Date.now()}-${safeName}`;
       await api.upload(`/sites/${siteId}/asset?path=${encodeURIComponent(dest)}`, file);
+      setFolder(dir);
       onApply(rootPrefix(filePath) + dest);
     } catch (err) {
       toast('error', err.message);
@@ -94,7 +123,7 @@ function ImageModal({ current, onApply, onClose, siteId, filePath }) {
     <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal">
         <div className="modal-header">
-          <span className="modal-title">Replace image</span>
+          <span className="modal-title">{mode === 'insert' ? 'Insert image' : 'Replace image'}</span>
           <button className="icon-btn" onClick={onClose}><Icons.X size={14} /></button>
         </div>
         <div className="form-section">
@@ -102,19 +131,257 @@ function ImageModal({ current, onApply, onClose, siteId, filePath }) {
             <label className="input-label">Image URL</label>
             <input className="input" value={url} onChange={(e) => setUrl(e.target.value)}
               placeholder="https://… or a path inside the site" />
-            <div className="input-hint">Use a full URL, or upload a file below — it is stored in the site under assets/uploads/.</div>
           </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
-            onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])} />
-          <button className="btn btn-sec" disabled={busy} onClick={() => fileRef.current?.click()}>
-            {busy ? <Icons.Loader size={13} className="spin" /> : <Icons.Image size={13} />} Upload image…
-          </button>
+          <div className="input-group">
+            <label className="input-label">Upload — destination folder in the site</label>
+            <div className="flex gap-2">
+              <input className="input mono" value={folder} onChange={(e) => setFolder(e.target.value)}
+                placeholder="assets/uploads" style={{ flex: 1 }} />
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])} />
+              <button className="btn btn-sec" disabled={busy} onClick={() => fileRef.current?.click()}>
+                {busy ? <Icons.Loader size={13} className="spin" /> : <Icons.Image size={13} />} Upload…
+              </button>
+            </div>
+            <div className="input-hint">
+              The file is saved into this folder of your draft and committed to GitHub when you push.
+            </div>
+          </div>
         </div>
         <div className="modal-footer">
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-pri" disabled={!url.trim()} onClick={() => onApply(url.trim())}>Apply</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Background editor: solid color, gradient, or image — applied to the page
+// body or to an element picked in the iframe.
+function BackgroundModal({ siteId, filePath, picked, onPickElement, onApply, onClose }) {
+  const { toast } = useApp();
+  const [target, setTarget] = useState(picked ? 'element' : 'page');
+  const [kind, setKind] = useState('color');
+  const [color, setColor] = useState('#1a2744');
+  const [grad1, setGrad1] = useState('#3b82f6');
+  const [grad2, setGrad2] = useState('#a855f7');
+  const [gradDir, setGradDir] = useState('135deg');
+  const [imgUrl, setImgUrl] = useState('');
+  const [imgFit, setImgFit] = useState('cover');
+  const [folder, setFolder] = useImageFolder(siteId);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+
+  const uploadFile = async (file) => {
+    setBusy(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_');
+      const dir = folder.replace(/^\/+|\/+$/g, '') || 'assets/uploads';
+      const dest = `${dir}/${Date.now()}-${safeName}`;
+      await api.upload(`/sites/${siteId}/asset?path=${encodeURIComponent(dest)}`, file);
+      setFolder(dir);
+      setImgUrl(rootPrefix(filePath) + dest);
+    } catch (err) {
+      toast('error', err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const buildCss = () => {
+    if (kind === 'color') return { background: color };
+    if (kind === 'gradient') return { background: `linear-gradient(${gradDir}, ${grad1}, ${grad2})` };
+    if (kind === 'image') {
+      if (!imgUrl.trim()) return null;
+      const url = `url("${imgUrl.trim()}")`;
+      return imgFit === 'tile'
+        ? { background: `${url} repeat` }
+        : { background: `${url} center / ${imgFit} no-repeat` };
+    }
+    return { background: '' }; // clear
+  };
+
+  const css = buildCss();
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 480 }}>
+        <div className="modal-header">
+          <span className="modal-title">Background</span>
+          <button className="icon-btn" onClick={onClose}><Icons.X size={14} /></button>
+        </div>
+        <div className="form-section">
+          <div className="input-group">
+            <label className="input-label">Apply to</label>
+            <div className="flex gap-2">
+              <button className={`btn btn-sm ${target === 'page' ? 'btn-pri' : 'btn-sec'}`} onClick={() => setTarget('page')}>
+                Whole page
+              </button>
+              <button className={`btn btn-sm ${target === 'element' ? 'btn-pri' : 'btn-sec'}`}
+                onClick={() => picked ? setTarget('element') : onPickElement()}>
+                {picked ? <>Element: <span className="mono">{picked}</span></> : 'Pick an element…'}
+              </button>
+              {picked && (
+                <button className="btn btn-ghost btn-sm" onClick={onPickElement} title="Pick a different element">
+                  <Icons.RefreshCw size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Type</label>
+            <div className="flex gap-2">
+              {[['color', 'Color'], ['gradient', 'Gradient'], ['image', 'Image'], ['clear', 'Clear']].map(([v, l]) => (
+                <button key={v} className={`btn btn-sm ${kind === v ? 'btn-pri' : 'btn-sec'}`} onClick={() => setKind(v)}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          {kind === 'color' && (
+            <div className="input-group">
+              <label className="input-label">Color</label>
+              <div className="flex gap-2 items-center">
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="se-swatch" />
+                <input className="input mono" style={{ width: 110 }} value={color} onChange={(e) => setColor(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {kind === 'gradient' && (
+            <div className="input-group">
+              <label className="input-label">Gradient</label>
+              <div className="flex gap-2 items-center" style={{ flexWrap: 'wrap' }}>
+                <input type="color" value={grad1} onChange={(e) => setGrad1(e.target.value)} className="se-swatch" />
+                <input type="color" value={grad2} onChange={(e) => setGrad2(e.target.value)} className="se-swatch" />
+                <select className="input" style={{ width: 'auto' }} value={gradDir} onChange={(e) => setGradDir(e.target.value)}>
+                  <option value="135deg">Diagonal ↘</option>
+                  <option value="45deg">Diagonal ↗</option>
+                  <option value="to bottom">Top → bottom</option>
+                  <option value="to right">Left → right</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {kind === 'image' && (
+            <>
+              <div className="input-group">
+                <label className="input-label">Image URL</label>
+                <input className="input" value={imgUrl} onChange={(e) => setImgUrl(e.target.value)}
+                  placeholder="https://… or a path inside the site" />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Upload — destination folder in the site</label>
+                <div className="flex gap-2">
+                  <input className="input mono" value={folder} onChange={(e) => setFolder(e.target.value)} style={{ flex: 1 }} />
+                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])} />
+                  <button className="btn btn-sec" disabled={busy} onClick={() => fileRef.current?.click()}>
+                    {busy ? <Icons.Loader size={13} className="spin" /> : <Icons.Image size={13} />} Upload…
+                  </button>
+                </div>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Fit</label>
+                <div className="flex gap-2">
+                  {[['cover', 'Cover'], ['contain', 'Contain'], ['tile', 'Tile']].map(([v, l]) => (
+                    <button key={v} className={`btn btn-xs ${imgFit === v ? 'btn-pri' : 'btn-sec'}`} onClick={() => setImgFit(v)}>{l}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {kind === 'clear' && (
+            <div className="text-sm text-muted">Removes the inline background from the target.</div>
+          )}
+
+          {css && kind !== 'clear' && (
+            <div className="se-bg-preview" style={css} />
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-pri" disabled={!css}
+            onClick={() => onApply(target, css)}>
+            <Icons.Check size={13} /> Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Hidden-input color button for the format bar (text / highlight color).
+function ColorButton({ icon: Icon, title, onPick, underline }) {
+  const ref = useRef(null);
+  const [val, setVal] = useState(underline);
+  return (
+    <button className="icon-btn se-color-btn" title={title} onClick={() => ref.current?.click()}>
+      <Icon size={13} />
+      <span className="se-color-underline" style={{ background: val }} />
+      <input ref={ref} type="color" value={val}
+        onChange={(e) => { setVal(e.target.value); onPick(e.target.value); }} />
+    </button>
+  );
+}
+
+function FormatBar({ send, onInsertImage, onBackground }) {
+  const cmd = (c, v) => send({ type: 'se-cmd', cmd: c, value: v });
+  return (
+    <div className="editor-format-bar">
+      <select className="input se-fmt-select" defaultValue=""
+        onChange={(e) => { if (e.target.value) cmd('formatBlock', e.target.value); e.target.value = ''; }}>
+        <option value="" disabled>Block</option>
+        {BLOCKS.map((b) => <option key={b.v} value={b.v}>{b.label}</option>)}
+      </select>
+      <select className="input se-fmt-select" defaultValue=""
+        onChange={(e) => { if (e.target.value) cmd('fontName', e.target.value); e.target.value = ''; }}>
+        <option value="" disabled>Font</option>
+        {FONTS.map((f) => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
+      </select>
+      <select className="input se-fmt-select" defaultValue=""
+        onChange={(e) => { if (e.target.value) cmd('fontSize', e.target.value); e.target.value = ''; }}>
+        <option value="" disabled>Size</option>
+        {SIZES.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
+      </select>
+
+      <div className="se-fmt-sep" />
+
+      <button className="icon-btn" title="Bold" onClick={() => cmd('bold')}><Icons.Bold size={13} /></button>
+      <button className="icon-btn" title="Italic" onClick={() => cmd('italic')}><Icons.Italic size={13} /></button>
+      <button className="icon-btn" title="Underline" onClick={() => cmd('underline')}><Icons.Underline size={13} /></button>
+      <button className="icon-btn" title="Strikethrough" onClick={() => cmd('strikeThrough')}><Icons.Strikethrough size={13} /></button>
+      <button className="icon-btn" title="Subscript" onClick={() => cmd('subscript')}><Icons.Subscript size={13} /></button>
+      <button className="icon-btn" title="Superscript" onClick={() => cmd('superscript')}><Icons.Superscript size={13} /></button>
+
+      <div className="se-fmt-sep" />
+
+      <ColorButton icon={Icons.Type} title="Text color" underline="#e2e8f0" onPick={(v) => cmd('foreColor', v)} />
+      <ColorButton icon={Icons.Droplet} title="Highlight color" underline="#f59e0b" onPick={(v) => cmd('hiliteColor', v)} />
+
+      <div className="se-fmt-sep" />
+
+      <button className="icon-btn" title="Align left" onClick={() => cmd('justifyLeft')}><Icons.AlignLeft size={13} /></button>
+      <button className="icon-btn" title="Align center" onClick={() => cmd('justifyCenter')}><Icons.AlignCenter size={13} /></button>
+      <button className="icon-btn" title="Align right" onClick={() => cmd('justifyRight')}><Icons.AlignRight size={13} /></button>
+      <button className="icon-btn" title="Justify" onClick={() => cmd('justifyFull')}><Icons.AlignJustify size={13} /></button>
+
+      <div className="se-fmt-sep" />
+
+      <button className="icon-btn" title="Insert link" onClick={() => {
+        const url = window.prompt('Link URL:');
+        if (url) cmd('createLink', url);
+      }}><Icons.Link size={13} /></button>
+      <button className="icon-btn" title="Insert image" onClick={onInsertImage}><Icons.Image size={13} /></button>
+      <button className="icon-btn" title="Background (page or element)" onClick={onBackground}><Icons.Palette size={13} /></button>
+      <button className="icon-btn" title="Remove formatting" onClick={() => cmd('removeFormat')}><Icons.Eraser size={13} /></button>
+
+      <span className="text-xs text-muted se-fmt-hint">
+        Click text to edit · click an image to replace it
+      </span>
     </div>
   );
 }
@@ -129,20 +396,23 @@ export function SiteEditor() {
   const [filter, setFilter] = useState('');
   const [current, setCurrent] = useState(null);       // selected file path
   const [mode, setMode] = useState('edit');           // edit | preview
+  const [view, setView] = useState('visual');         // visual | code (HTML files)
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [building, setBuilding] = useState(false);
   const [buildLog, setBuildLog] = useState(null);
-  const [textContent, setTextContent] = useState(null); // non-HTML text editing
+  const [codeContent, setCodeContent] = useState(null); // code-view / text-file editing
   const [showPush, setShowPush] = useState(false);
-  const [imageTarget, setImageTarget] = useState(null); // { imgId, src }
+  const [imageModal, setImageModal] = useState(null);   // { mode: 'replace'|'insert', imgId?, src? }
+  const [bgModal, setBgModal] = useState(null);          // { picking: bool, picked: string|null }
   const [frameNonce, setFrameNonce] = useState(0);
   const iframeRef = useRef(null);
   const htmlRequests = useRef(new Map());
   const reqSeq = useRef(0);
 
   const isHtml = current ? /\.html?$/i.test(current) : false;
+  const inCodeEditor = current && (!isHtml || view === 'code') && mode === 'edit';
 
   const loadFiles = useCallback(async () => {
     if (!site || site.status !== 'ready') return;
@@ -162,16 +432,15 @@ export function SiteEditor() {
 
   useEffect(() => { loadFiles(); }, [loadFiles]);
 
-  // Non-HTML files are edited in a plain text editor.
+  // Load file content whenever the code editor is the active surface.
   useEffect(() => {
-    setTextContent(null);
-    setDirty(false);
+    setCodeContent(null);
     setBuildLog(null);
-    if (!current || isHtml) return;
+    if (!current || !(!isHtml || view === 'code')) return;
     api.get(`/sites/${siteId}/file?path=${encodeURIComponent(current)}`)
-      .then((f) => setTextContent(f.content))
+      .then((f) => setCodeContent(f.content))
       .catch((err) => toast('error', err.message));
-  }, [current, isHtml, siteId, frameNonce]);
+  }, [current, isHtml, view, siteId, frameNonce]);
 
   // Messages from the editor iframe runtime.
   useEffect(() => {
@@ -179,7 +448,8 @@ export function SiteEditor() {
       if (e.source !== iframeRef.current?.contentWindow) return;
       const d = e.data || {};
       if (d.type === 'se-dirty') setDirty(true);
-      else if (d.type === 'se-image') setImageTarget({ imgId: d.imgId, src: d.src });
+      else if (d.type === 'se-image') setImageModal({ mode: 'replace', imgId: d.imgId, src: d.src });
+      else if (d.type === 'se-picked') setBgModal({ picking: false, picked: d.desc });
       else if (d.type === 'se-html') {
         const pending = htmlRequests.current.get(d.requestId);
         if (pending) { htmlRequests.current.delete(d.requestId); pending(d.html); }
@@ -204,7 +474,9 @@ export function SiteEditor() {
     if (!current) return false;
     setSaving(true);
     try {
-      const content = isHtml ? await getFrameHtml() : textContent;
+      const content = (isHtml && view === 'visual' && mode === 'edit')
+        ? await getFrameHtml()
+        : codeContent;
       if (content == null) throw new Error('Nothing to save');
       await api.put(`/sites/${siteId}/file`, { path: current, content });
       setDirty(false);
@@ -276,7 +548,27 @@ export function SiteEditor() {
     setDirty(false);
     setCurrent(path);
     setMode('edit');
+    setView('visual');
     setFrameNonce((n) => n + 1);
+  };
+
+  // Visual ⇄ code toggle for HTML files. The current state is saved as a
+  // draft first so the other editor picks up exactly what was on screen.
+  const switchView = async (v) => {
+    if (v === view || !isHtml) return;
+    if (dirty) { const ok = await saveDraft(); if (!ok) return; }
+    setView(v);
+    setFrameNonce((n) => n + 1);
+  };
+
+  const startElementPick = () => {
+    setBgModal({ picking: true, picked: bgModal?.picked ?? null });
+    sendToFrame({ type: 'se-pick-element' });
+  };
+
+  const cancelElementPick = () => {
+    sendToFrame({ type: 'se-cancel-pick' });
+    setBgModal({ picking: false, picked: bgModal?.picked ?? null });
   };
 
   const visibleFiles = useMemo(
@@ -318,6 +610,7 @@ export function SiteEditor() {
   const frameSrc = mode === 'preview'
     ? apiUrl(`/sites/${siteId}/preview/${previewPath}`)
     : apiUrl(`/sites/${siteId}/edit/${current ?? ''}`);
+  const showFrame = current && mode === 'edit' ? (isHtml && view === 'visual') : Boolean(current);
 
   return (
     <>
@@ -330,6 +623,16 @@ export function SiteEditor() {
           {dirty && <span className="badge badge-red">unsaved</span>}
         </div>
         <div className="flex items-center gap-2">
+          {mode === 'edit' && isHtml && (
+            <div className="se-seg">
+              <button className={`se-seg-btn${view === 'visual' ? ' active' : ''}`} onClick={() => switchView('visual')}>
+                <Icons.Eye size={12} /> Visual
+              </button>
+              <button className={`se-seg-btn${view === 'code' ? ' active' : ''}`} onClick={() => switchView('code')}>
+                <Icons.Code size={12} /> Code
+              </button>
+            </div>
+          )}
           {canSync && (
             <button className="btn btn-sec btn-sm" disabled={syncing} onClick={sync} title="Pull the latest from GitHub">
               {syncing ? <Icons.Loader size={13} className="spin" /> : <Icons.DownloadCloud size={13} />} Sync
@@ -370,28 +673,21 @@ export function SiteEditor() {
         </div>
       )}
 
-      {/* ── Formatting toolbar (HTML editing only) ── */}
-      {mode === 'edit' && isHtml && (
-        <div className="editor-format-bar">
-          <button className="icon-btn" title="Bold" onClick={() => sendToFrame({ type: 'se-cmd', cmd: 'bold' })}><Icons.Bold size={13} /></button>
-          <button className="icon-btn" title="Italic" onClick={() => sendToFrame({ type: 'se-cmd', cmd: 'italic' })}><Icons.Italic size={13} /></button>
-          <button className="icon-btn" title="Underline" onClick={() => sendToFrame({ type: 'se-cmd', cmd: 'underline' })}><Icons.Underline size={13} /></button>
-          <div className="divider" style={{ width: 1, height: 18 }} />
-          <select className="input" style={{ width: 'auto', padding: '3px 6px' }} defaultValue=""
-            onChange={(e) => { if (e.target.value) sendToFrame({ type: 'se-cmd', cmd: 'formatBlock', value: e.target.value }); e.target.value = ''; }}>
-            <option value="" disabled>Block…</option>
-            <option value="H1">Heading 1</option>
-            <option value="H2">Heading 2</option>
-            <option value="H3">Heading 3</option>
-            <option value="P">Paragraph</option>
-          </select>
-          <button className="icon-btn" title="Insert link" onClick={() => {
-            const url = window.prompt('Link URL:');
-            if (url) sendToFrame({ type: 'se-cmd', cmd: 'createLink', value: url });
-          }}><Icons.Link size={13} /></button>
-          <span className="text-xs text-muted" style={{ marginLeft: 'auto' }}>
-            Click any text to edit it · click an image to replace it
-          </span>
+      {/* ── Formatting toolbar (visual HTML editing only) ── */}
+      {mode === 'edit' && isHtml && view === 'visual' && (
+        <FormatBar
+          send={sendToFrame}
+          onInsertImage={() => setImageModal({ mode: 'insert' })}
+          onBackground={() => setBgModal({ picking: false, picked: null })}
+        />
+      )}
+
+      {/* ── Element-pick hint bar ── */}
+      {bgModal?.picking && (
+        <div className="se-pick-banner">
+          <Icons.Search size={13} />
+          Click an element in the page to select it for the background…
+          <button className="btn btn-ghost btn-xs" onClick={cancelElementPick}>Cancel</button>
         </div>
       )}
 
@@ -419,7 +715,7 @@ export function SiteEditor() {
         </div>
 
         <div className="editor-stage card">
-          {current && (isHtml || mode === 'preview') && (
+          {showFrame && (
             <iframe
               key={`${mode}-${current}-${frameNonce}`}
               ref={iframeRef}
@@ -428,14 +724,14 @@ export function SiteEditor() {
               src={frameSrc}
             />
           )}
-          {current && !isHtml && mode === 'edit' && (
-            textContent === null
+          {inCodeEditor && (
+            codeContent === null
               ? <div className="empty-state"><Icons.Loader size={22} className="spin" /></div>
               : <textarea
                   className="editor-code"
-                  value={textContent}
+                  value={codeContent}
                   spellCheck={false}
-                  onChange={(e) => { setTextContent(e.target.value); setDirty(true); }}
+                  onChange={(e) => { setCodeContent(e.target.value); setDirty(true); }}
                 />
           )}
           {!current && (
@@ -457,12 +753,28 @@ export function SiteEditor() {
             setFrameNonce((n) => n + 1);
           }} />
       )}
-      {imageTarget && (
-        <ImageModal current={imageTarget.src} siteId={siteId} filePath={current || 'index.html'}
-          onClose={() => setImageTarget(null)}
+      {imageModal && (
+        <ImageModal mode={imageModal.mode} current={imageModal.src} siteId={siteId}
+          filePath={current || 'index.html'}
+          onClose={() => setImageModal(null)}
           onApply={(src) => {
-            sendToFrame({ type: 'se-set-image', imgId: imageTarget.imgId, src });
-            setImageTarget(null);
+            if (imageModal.mode === 'replace') {
+              sendToFrame({ type: 'se-set-image', imgId: imageModal.imgId, src });
+            } else {
+              sendToFrame({ type: 'se-insert-image', src });
+            }
+            setImageModal(null);
+            setDirty(true);
+          }} />
+      )}
+      {bgModal && !bgModal.picking && (
+        <BackgroundModal siteId={siteId} filePath={current || 'index.html'}
+          picked={bgModal.picked}
+          onPickElement={startElementPick}
+          onClose={() => setBgModal(null)}
+          onApply={(target, css) => {
+            sendToFrame({ type: 'se-set-bg', target, css });
+            setBgModal(null);
             setDirty(true);
           }} />
       )}

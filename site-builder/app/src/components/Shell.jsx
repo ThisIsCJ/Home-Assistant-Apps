@@ -48,7 +48,13 @@ export function Shell({ children, title }) {
   const { me, sites } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('se_sidebar_collapsed') === '1');
+  const [theme, setTheme] = useState(() => localStorage.getItem('se_theme') || 'dark');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('se_theme', theme);
+  }, [theme]);
 
   const toggleCollapsed = () => {
     setCollapsed((c) => {
@@ -115,6 +121,11 @@ export function Shell({ children, title }) {
           </button>
           <span className="topbar-title">{title}</span>
           <div className="topbar-spacer" />
+          <button className="icon-btn" onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {theme === 'dark' ? <Icons.Sun size={15} /> : <Icons.Moon size={15} />}
+          </button>
           <AvatarMenu me={me} navigate={navigate} />
         </header>
 

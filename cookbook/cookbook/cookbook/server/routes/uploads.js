@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { Router } from 'express';
 import multer from 'multer';
 import { ingressUser } from '../middleware/ingressAuth.js';
+import { requireAccess } from '../middleware/access.js';
 
 // Uploaded images are persisted to the add-on's /data volume so they survive
 // restarts. They are served back publicly (the URL is unguessable) so <img>
@@ -36,7 +37,7 @@ const upload = multer({
 
 const router = Router();
 
-router.post('/', ingressUser, (req, res) => {
+router.post('/', ingressUser, requireAccess, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;

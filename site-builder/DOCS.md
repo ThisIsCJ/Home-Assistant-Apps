@@ -75,9 +75,21 @@ captured consistently.
 
 - **Edit** — open a site from the sidebar, pick a page from the file list.
   HTML pages render visually: click text to edit it in place, click an image
-  to replace it (URL or upload), use the toolbar for bold/italic/underline,
-  headings and links. Other text files (Markdown, CSS, JS, …) open in a code
-  editor.
+  to replace it (URL or upload). The formatting toolbar covers block styles
+  (headings, quote, code block), font family and size, text and highlight
+  color, bold/italic/underline/strikethrough, sub/superscript, alignment,
+  links, and remove-formatting. Other text files (Markdown, CSS, JS, …) open
+  in a code editor.
+- **Visual ⇄ Code** — HTML pages can be toggled between the visual editor
+  and a raw code view (toolbar toggle); the state on screen is carried over
+  via your draft when switching.
+- **Insert images** — the toolbar's image button inserts an image at the
+  cursor; uploads are written to a folder you choose inside the site
+  (default `assets/uploads/`), become part of your draft, and are committed
+  to GitHub when you push.
+- **Backgrounds** — the palette button sets a background color, two-color
+  gradient, or image (upload or URL, cover/contain/tile) on the whole page
+  or on any element you click to pick in the page.
 - **Save Draft** — stores your work per user, per site, outside the
   repository. Come back any time; drafts survive restarts and are marked in
   the sidebar and file list.

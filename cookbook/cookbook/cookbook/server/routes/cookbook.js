@@ -1,10 +1,11 @@
 import { ObjectId } from 'mongodb';
 import { Router } from 'express';
 import { ingressUser } from '../middleware/ingressAuth.js';
+import { recordUser, requireAccess } from '../middleware/access.js';
 import { getDb, isConnected } from '../db.js';
 
 const router = Router();
-const requireCookbookAccess = [ingressUser];
+const requireCookbookAccess = [ingressUser, recordUser, requireAccess];
 const COLLECTION = 'cookbookRecipes';
 const DEFAULT_CATEGORIES = ['Appetizers', 'Soups', 'Sauces', 'Vegetarian', 'Seafood', 'Meat', 'Desserts'];
 const AMOUNT_TOKEN_PATTERN = String.raw`(?:\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+\s*[¼½¾⅓⅔⅛⅜⅝⅞⅙⅚⅕⅖⅗⅘]|\d+(?:\.\d+)?|\.\d+|[¼½¾⅓⅔⅛⅜⅝⅞⅙⅚⅕⅖⅗⅘])`;
@@ -16,7 +17,7 @@ router.get('/recipes', ...requireCookbookAccess, async (req, res) => {
   try {
     const isAdmin = req.user.isAdmin;
     const recipes = await getDb().collection(COLLECTION)
-      .find({})
+      .find({ archived: { $ne: true } })
       .sort({ updatedAt: -1, createdAt: -1 })
       .project({
         title: 1,
@@ -55,7 +56,7 @@ router.get('/recipes/:id', ...requireCookbookAccess, async (req, res) => {
       _id: new ObjectId(req.params.id),
     });
 
-    if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
+    if (!recipe || (recipe.archived && !isAdmin)) return res.status(404).json({ error: 'Recipe not found' });
     await migrateRecipeIngredients([recipe]);
     res.json({ recipe: await serializeRecipe(recipe, req.user.id, isAdmin) });
   } catch (err) {
@@ -86,7 +87,7 @@ router.put('/recipes/:id', ...requireCookbookAccess, async (req, res) => {
   try {
     const isAdmin = req.user.isAdmin;
     const existing = await getDb().collection(COLLECTION).findOne({ _id: new ObjectId(req.params.id) });
-    if (!existing) return res.status(404).json({ error: 'Recipe not found' });
+    if (!existing || (existing.archived && !isAdmin)) return res.status(404).json({ error: 'Recipe not found' });
     if (!canEditRecipe(existing, req.user.id, isAdmin)) {
       return res.status(403).json({ error: 'You do not have permission to edit this recipe' });
     }
@@ -118,7 +119,7 @@ router.patch('/recipes/:id', ...requireCookbookAccess, async (req, res) => {
   try {
     const isAdmin = req.user.isAdmin;
     const existing = await getDb().collection(COLLECTION).findOne({ _id: new ObjectId(req.params.id) });
-    if (!existing) return res.status(404).json({ error: 'Recipe not found' });
+    if (!existing || (existing.archived && !isAdmin)) return res.status(404).json({ error: 'Recipe not found' });
     if (!canEditRecipe(existing, req.user.id, isAdmin)) {
       return res.status(403).json({ error: 'You do not have permission to edit this recipe' });
     }
@@ -145,16 +146,25 @@ router.delete('/recipes/:id', ...requireCookbookAccess, async (req, res) => {
   try {
     const isAdmin = req.user.isAdmin;
     const existing = await getDb().collection(COLLECTION).findOne({ _id: new ObjectId(req.params.id) });
-    if (!existing) return res.status(404).json({ error: 'Recipe not found' });
+    if (!existing || existing.archived) return res.status(404).json({ error: 'Recipe not found' });
     if (!canEditRecipe(existing, req.user.id, isAdmin)) {
       return res.status(403).json({ error: 'You do not have permission to delete this recipe' });
     }
 
-    const result = await getDb().collection(COLLECTION).deleteOne({
-      _id: new ObjectId(req.params.id),
-    });
+    // Soft delete: the recipe disappears from the app but stays in the archive,
+    // where an admin can restore it or permanently delete it.
+    await getDb().collection(COLLECTION).updateOne(
+      { _id: new ObjectId(req.params.id) },
+      {
+        $set: {
+          archived: true,
+          archivedAt: new Date(),
+          archivedBy: req.user.id,
+          archivedByName: req.user.name || '',
+        },
+      }
+    );
 
-    if (result.deletedCount === 0) return res.status(404).json({ error: 'Recipe not found' });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -208,7 +218,7 @@ router.post('/recipes/:id/reviews', ...requireCookbookAccess, async (req, res) =
   try {
     const recipeId = new ObjectId(req.params.id);
     const existing = await getDb().collection(COLLECTION).findOne({ _id: recipeId });
-    if (!existing) return res.status(404).json({ error: 'Recipe not found' });
+    if (!existing || (existing.archived && !req.user.isAdmin)) return res.status(404).json({ error: 'Recipe not found' });
 
     const review = await sanitizeReviewInput(req.body, req.user);
     if (!review.rating) return res.status(400).json({ error: 'rating is required' });
@@ -239,7 +249,7 @@ router.put('/recipes/:id/reviews/:reviewId', ...requireCookbookAccess, async (re
     const recipeId = new ObjectId(req.params.id);
     const reviewId = req.params.reviewId;
     const existing = await getDb().collection(COLLECTION).findOne({ _id: recipeId });
-    if (!existing) return res.status(404).json({ error: 'Recipe not found' });
+    if (!existing || (existing.archived && !req.user.isAdmin)) return res.status(404).json({ error: 'Recipe not found' });
 
     const isAdmin = req.user.isAdmin;
     const reviews = Array.isArray(existing.reviews) ? existing.reviews : [];
@@ -276,7 +286,7 @@ router.delete('/recipes/:id/reviews/:reviewId', ...requireCookbookAccess, async 
     const recipeId = new ObjectId(req.params.id);
     const reviewId = req.params.reviewId;
     const existing = await getDb().collection(COLLECTION).findOne({ _id: recipeId });
-    if (!existing) return res.status(404).json({ error: 'Recipe not found' });
+    if (!existing || (existing.archived && !req.user.isAdmin)) return res.status(404).json({ error: 'Recipe not found' });
 
     const isAdmin = req.user.isAdmin;
     const reviews = Array.isArray(existing.reviews) ? existing.reviews : [];

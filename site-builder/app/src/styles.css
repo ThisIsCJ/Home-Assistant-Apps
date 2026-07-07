@@ -31,6 +31,35 @@
   --radius: 6px;
 }
 
+/* Light theme — same token roles, inverted lightness. Backgrounds go
+   light→white as you elevate; --accent2 DARKENS (a lighter blue would fail
+   contrast on white); semantic hues deepen one step for legibility. */
+[data-theme="light"] {
+  --bg:      #f1f5f9;
+  --bg-2:    #f8fafc;
+  --bg-3:    #e2e8f0;
+  --surface: #ffffff;
+  --card:    #ffffff;
+  --card2:   #f8fafc;
+
+  --border:  #e2e8f0;
+  --border2: #cbd5e1;
+
+  --fg:      #0f172a;
+  --text:    #0f172a;
+  --muted:   #64748b;
+  --muted2:  #475569;
+
+  --accent:  #3b82f6;
+  --accent2: #2563eb;
+
+  --green:   #059669;
+  --green2:  #10b981;
+  --orange:  #d97706;
+  --red:     #dc2626;
+  --purple:  #9333ea;
+}
+
 /* ─── Reset ─────────────────────────────────────────────────────────── */
 *, *::before, *::after {
   margin: 0; padding: 0;
@@ -135,7 +164,7 @@ input, select, textarea { font-family: inherit; }
 .sidebar-brand-text {
   font-size: 0.82rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
@@ -200,7 +229,7 @@ input, select, textarea { font-family: inherit; }
 .topbar-title {
   font-size: 0.85rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
@@ -238,7 +267,7 @@ input, select, textarea { font-family: inherit; }
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   overflow: hidden;
@@ -377,7 +406,7 @@ input, select, textarea { font-family: inherit; }
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -800,7 +829,7 @@ tbody tr:hover { background: rgba(59,130,246,0.04); }
 .mono        { font-family: 'JetBrains Mono', monospace; }
 .truncate    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .grad-text {
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
@@ -844,7 +873,7 @@ tbody tr:hover { background: rgba(59,130,246,0.04); }
 .login-title {
   font-size: 1.1rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 6px;
@@ -1127,7 +1156,7 @@ tbody tr:hover { background: rgba(59,130,246,0.04); }
 .home-hero h1 {
   font-size: 2.4rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.03em;
@@ -1151,7 +1180,7 @@ tbody tr:hover { background: rgba(59,130,246,0.04); }
 .home-section-title {
   font-size: 1.3rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.02em;
@@ -1981,3 +2010,85 @@ html[data-size="xl"] { font-size: 22px; }
     gap: 0;
   }
 }
+
+/* ─── Editor: visual/code segmented toggle ──────────────────────────── */
+.se-seg {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px;
+}
+.se-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.se-seg-btn:hover  { color: var(--text); }
+.se-seg-btn.active { background: var(--card2); color: var(--accent2); }
+
+/* ─── Editor: formatting toolbar ────────────────────────────────────── */
+.editor-format-bar { flex-wrap: wrap; row-gap: 4px; }
+
+.se-fmt-select { width: auto; padding: 3px 6px; font-size: 0.72rem; }
+
+.se-fmt-sep { width: 1px; height: 18px; background: var(--border2); margin: 0 2px; flex-shrink: 0; }
+
+.se-fmt-hint { margin-left: auto; }
+@media (max-width: 900px) { .se-fmt-hint { display: none; } }
+
+/* Color pickers disguised as toolbar buttons — the swatch underline shows
+   the currently selected color. */
+.se-color-btn { position: relative; flex-direction: column; gap: 1px; }
+.se-color-btn input[type="color"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.se-color-underline {
+  display: block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+/* ─── Editor: background modal ──────────────────────────────────────── */
+.se-swatch {
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  background: var(--card);
+  cursor: pointer;
+}
+.se-bg-preview {
+  height: 56px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+}
+
+/* ─── Editor: element-pick hint banner ──────────────────────────────── */
+.se-pick-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: var(--orange);
+  border-radius: 7px;
+  padding: 6px 12px;
+  margin-bottom: 10px;
+  font-size: 0.74rem;
+}
+.se-pick-banner .btn { margin-left: auto; }

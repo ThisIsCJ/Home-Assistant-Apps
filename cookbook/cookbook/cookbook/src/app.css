@@ -78,6 +78,86 @@ body {
   margin-bottom: 8px;
 }
 
+.cb-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Admin page */
+.admin-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-access {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.admin-access__users {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-archived {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-archived__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px;
+  background: var(--panel-2);
+}
+
+.admin-archived__image {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+
+.admin-archived__image--empty {
+  display: grid;
+  place-items: center;
+  color: var(--fg-subtle);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.admin-archived__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-archived__title {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.admin-archived__title:hover {
+  text-decoration: underline;
+}
+
+.admin-archived__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .cb-main .page__actions {
   display: flex;
   gap: 8px;

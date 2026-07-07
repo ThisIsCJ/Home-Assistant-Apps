@@ -6,6 +6,7 @@ import { connect, isConnected, getConnectionError } from './db.js';
 import { getMongoUri, getConfigSummary } from './config.js';
 import { ingressUser } from './middleware/ingressAuth.js';
 import cookbookRouter from './routes/cookbook.js';
+import cookbookAdminRouter from './routes/cookbookAdmin.js';
 import uploadsRouter from './routes/uploads.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -18,6 +19,7 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 
 // --- API -------------------------------------------------------------------
+app.use('/api/cookbook/admin', cookbookAdminRouter);
 app.use('/api/cookbook', cookbookRouter);
 app.use('/api/uploads', uploadsRouter);
 

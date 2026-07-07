@@ -16,6 +16,10 @@ of servings you want, and leave star ratings and comments.
 - **Multi-user aware** — recipes and reviews are attributed to the signed-in
   Home Assistant user (via ingress), and only the owner (or an admin) can edit
   or delete them.
+- **Admin panel** — admins get an **Admin** button in the top bar where they
+  can restrict cookbook access to all users or a selected set of users, and
+  manage archived recipes. Deleting a recipe archives it rather than removing
+  it; admins can restore archived recipes or permanently delete them.
 
 ## Requirements
 
@@ -54,7 +58,9 @@ sidebar (or the **Open Web UI** button).
   Assistant handles authentication. The signed-in user's identity is read from
   the ingress headers and used for recipe ownership and reviews.
 - Recipes are stored in the `cookbookRecipes` collection of your MongoDB
-  database.
+  database. Deleted recipes stay there flagged as archived until an admin
+  permanently deletes them from the admin panel. Access settings and the list
+  of known users live in the `cookbookConfig` and `cookbookUsers` collections.
 - Uploaded images are stored on the add-on's `/data` volume and served back
   through ingress.
 

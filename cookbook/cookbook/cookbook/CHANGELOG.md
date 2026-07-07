@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+- New admin panel (Admin button in the top bar, visible to admins only) with:
+  - Cookbook access control — allow all Home Assistant users or only selected
+    users. Users appear in the list after opening the cookbook once; admins
+    always have access.
+  - Archived recipes — deleting a recipe now archives it instead of removing
+    it. Admins can restore archived recipes or permanently delete them.
+- Recipe detail: fixed blank page, added a back button.
+- Recipe browsing: 3-across card layout on Samsung Fold–width screens (~836px).
+
 ## 1.0.0
 
 - Initial release as a Home Assistant add-on, converted from the Cookbook
