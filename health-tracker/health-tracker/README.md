@@ -15,8 +15,12 @@ existing MongoDB server (self-hosted or Atlas).
    (Settings → Add-ons → Add-on Store → ⋮ → Repositories).
 2. Install **Health Tracker**.
 3. Fill in the required options (see Documentation tab): `mongodb_url`,
-   `oidc_authority`, `oidc_client_id`, `secret_key`, `app_base_url`.
+   `ha_url`, `secret_key`, `app_base_url`.
 4. Start the add-on and open the Web UI on port 8099.
+
+Login uses your **Home Assistant account** by default — no external identity
+provider needed. Prefer SSO? Set `auth_method: oidc` and the `oidc_*` options
+to use Authentik or any OIDC provider instead (see Documentation tab).
 
 ## Architecture
 

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from database import connect_db, close_db, get_app_db
+from routes.auth import router as auth_router
 from routes.health import router as health_router
 from routes.users import router as users_router
 from routes.food import router as food_router
@@ -305,6 +306,7 @@ _avatar_dir = os.path.join(_settings.upload_dir, "avatars")
 os.makedirs(_avatar_dir, exist_ok=True)
 app.mount("/api/avatars", StaticFiles(directory=_avatar_dir), name="avatars")
 
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(health_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(food_router, prefix="/api/food")

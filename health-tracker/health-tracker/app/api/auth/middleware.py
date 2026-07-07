@@ -45,13 +45,11 @@ async def _get_jwks() -> dict:
     return _jwks_cache
 
 
-async def _decode_token(token: str) -> dict:
+async def _decode_oidc_token(token: str, header: dict) -> dict:
     global _jwks_fetched_at, _jwks_uri
     settings = get_settings()
-    try:
-        header = jwt.get_unverified_header(token)
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token format")
+    if not settings.oidc_authority:
+        raise HTTPException(status_code=401, detail="OIDC auth is not configured")
 
     kid = header.get("kid")
     jwks = await _get_jwks()
@@ -149,6 +147,18 @@ async def _check_api_token(token: str) -> dict | None:
     return user
 
 
+async def _get_session_user(token: str) -> dict:
+    """Resolve a session JWT we issued (Home Assistant login) to its user."""
+    from auth.ha import verify_session_token
+
+    payload = verify_session_token(token)
+    db = get_app_db()
+    user = await db.users.find_one({"externalSubject": payload.get("sub")})
+    if not user:
+        raise HTTPException(status_code=401, detail="Session user no longer exists — sign in again")
+    return user
+
+
 async def require_auth(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict:
@@ -161,7 +171,17 @@ async def require_auth(
         if not user:
             raise HTTPException(status_code=401, detail="Invalid or revoked API token")
         return user
-    payload = await _decode_token(token)
+
+    try:
+        header = jwt.get_unverified_header(token)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token format")
+
+    # Our own session tokens (Home Assistant login) are HS256; OIDC access
+    # tokens are RS256 — the algorithm routes the token to its verifier.
+    if header.get("alg") == "HS256":
+        return await _get_session_user(token)
+    payload = await _decode_oidc_token(token, header)
     user = await _get_or_create_user(payload)
     return user
 

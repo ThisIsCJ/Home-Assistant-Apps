@@ -4,6 +4,10 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     mongodb_url: str = "mongodb://mongo:27017"
+    auth_method: str = "home_assistant"  # home_assistant | oidc
+    ha_url: str = ""            # HA URL the user's browser can reach (login redirect)
+    ha_internal_url: str = ""   # HA URL reachable from this container; falls back to ha_url
+    session_ttl_days: int = 30
     oidc_authority: str = ""
     oidc_client_id: str = ""
     oidc_audience: str = ""

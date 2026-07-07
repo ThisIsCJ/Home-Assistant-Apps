@@ -13,7 +13,9 @@ export default function Login() {
   }, [isAuthenticated, loading, navigate]);
 
   const appName = getEnv('APP_NAME') || 'Health Tracker';
-  const hasOidc = !!(getEnv('OIDC_AUTHORITY') && getEnv('OIDC_CLIENT_ID'));
+  const { authMethod } = useAuth();
+  const hasHa = authMethod === 'home_assistant' && !!getEnv('HA_URL');
+  const hasOidc = authMethod === 'oidc' && !!(getEnv('OIDC_AUTHORITY') && getEnv('OIDC_CLIENT_ID'));
   const isDev = getEnv('ENVIRONMENT') === 'development';
 
   const handleDevLogin = () => {
@@ -30,9 +32,13 @@ export default function Login() {
         <h1 className="login-title">{appName}</h1>
         <p className="login-sub">Your private health data, your way.</p>
 
-        {hasOidc ? (
+        {hasHa ? (
           <button className="btn btn-pri w-full" style={{ justifyContent: 'center', padding: '10px' }} onClick={login}>
-            Sign in with Authentik
+            Sign in with Home Assistant
+          </button>
+        ) : hasOidc ? (
+          <button className="btn btn-pri w-full" style={{ justifyContent: 'center', padding: '10px' }} onClick={login}>
+            Sign in with SSO
           </button>
         ) : isDev ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -40,13 +46,13 @@ export default function Login() {
               Sign in as Dev User
             </button>
             <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, padding: '10px 12px', fontSize: '0.72rem', color: '#fcd34d', textAlign: 'left' }}>
-              <strong>Development mode</strong> — no OIDC configured. Set <code>VITE_OIDC_AUTHORITY</code> and <code>VITE_OIDC_CLIENT_ID</code> for production.
+              <strong>Development mode</strong> — no auth provider configured. Set <code>ha_url</code> (Home Assistant) or the OIDC options for production.
             </div>
           </div>
         ) : (
           <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '12px 14px', fontSize: '0.74rem', color: '#fca5a5', textAlign: 'left' }}>
             <strong>Configuration required</strong><br />
-            Set <code>VITE_OIDC_AUTHORITY</code> and <code>VITE_OIDC_CLIENT_ID</code> in your <code>.env</code> file to enable login.
+            Set <code>ha_url</code> to sign in with Home Assistant, or set <code>auth_method: oidc</code> with <code>oidc_authority</code> and <code>oidc_client_id</code> for SSO login.
           </div>
         )}
 

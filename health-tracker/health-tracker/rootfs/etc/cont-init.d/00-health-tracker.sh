@@ -27,8 +27,14 @@ mkdir -p "${env_dir}"
 set_env() { printf '%s' "$2" > "${env_dir}/$1"; }
 
 mongodb_url="$(opt mongodb_url)"
+auth_method="$(opt auth_method home_assistant)"
+ha_url="$(opt ha_url)"
+secret_key="$(opt secret_key)"
 
 set_env MONGODB_URL             "${mongodb_url}"
+set_env AUTH_METHOD             "${auth_method}"
+set_env HA_URL                  "${ha_url}"
+set_env HA_INTERNAL_URL         "$(opt ha_internal_url)"
 set_env OIDC_AUTHORITY          "$(opt oidc_authority)"
 set_env OIDC_CLIENT_ID          "$(opt oidc_client_id)"
 set_env OIDC_AUDIENCE           "$(opt oidc_audience)"
@@ -50,7 +56,22 @@ if [ -z "${mongodb_url}" ]; then
     bashio::log.fatal "mongodb_url is not set — the add-on cannot start without a MongoDB server."
     exit 1
 fi
-if [ -z "$(opt secret_key)" ]; then
+if [ "${auth_method}" = "home_assistant" ]; then
+    if [ -z "${ha_url}" ]; then
+        bashio::log.fatal "auth_method is home_assistant but ha_url is not set — set it to the URL users reach Home Assistant at (e.g. https://ha.example.com or http://192.168.1.10:8123)."
+        exit 1
+    fi
+    if [ -z "${secret_key}" ]; then
+        bashio::log.fatal "secret_key is required with Home Assistant auth — it signs login session tokens. Generate one with: python3 -c \"import secrets; print(secrets.token_hex(32))\""
+        exit 1
+    fi
+elif [ "${auth_method}" = "oidc" ]; then
+    if [ -z "$(opt oidc_authority)" ] || [ -z "$(opt oidc_client_id)" ]; then
+        bashio::log.fatal "auth_method is oidc but oidc_authority / oidc_client_id are not set."
+        exit 1
+    fi
+fi
+if [ -z "${secret_key}" ]; then
     bashio::log.warning "secret_key is empty — set one! It encrypts stored AI keys and Google OAuth tokens."
 fi
 
@@ -58,6 +79,8 @@ fi
 cat > /opt/health-tracker/www/env-config.js <<EOF
 window.__env__ = {
   APP_NAME: "$(opt app_name 'Health Tracker')",
+  AUTH_METHOD: "${auth_method}",
+  HA_URL: "${ha_url}",
   OIDC_AUTHORITY: "$(opt oidc_authority)",
   OIDC_CLIENT_ID: "$(opt oidc_client_id)",
   OIDC_SCOPE: "$(opt oidc_scope 'openid profile email')",

@@ -5,6 +5,8 @@
 cat > /usr/share/nginx/html/env-config.js <<EOF
 window.__env__ = {
   APP_NAME: "${VITE_APP_NAME:-Health Tracker}",
+  AUTH_METHOD: "${VITE_AUTH_METHOD:-}",
+  HA_URL: "${VITE_HA_URL:-}",
   OIDC_AUTHORITY: "${VITE_OIDC_AUTHORITY:-}",
   OIDC_CLIENT_ID: "${VITE_OIDC_CLIENT_ID:-}",
 OIDC_SCOPE: "${VITE_OIDC_SCOPE:-openid profile email}",
