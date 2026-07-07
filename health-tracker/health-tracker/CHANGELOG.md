@@ -14,6 +14,10 @@
 - The sidebar collapse button on large screens now hides the menu completely
   (like on small screens) instead of shrinking it to an icon rail, and the
   choice is remembered across reloads.
+- The add-on can now be shown in the Home Assistant sidebar (ingress +
+  **Show in sidebar** toggle on the Info page). The sidebar entry opens the
+  app at `app_base_url`, since the app's login flows can't run inside the
+  ingress iframe.
 
 ## 1.1.0
 

@@ -91,6 +91,34 @@ window.__env__ = {
 EOF
 bashio::log.info "env-config.js written."
 
+# ── Ingress breakout page (HA sidebar) ────────────────────────────────────────
+# The app's login flows (HA OAuth / OIDC redirects) can't run inside the
+# ingress iframe, so the sidebar entry opens the app at its real URL instead.
+app_base_url="$(opt app_base_url)"
+mkdir -p /opt/health-tracker/ingress
+if [ -n "${app_base_url}" ]; then
+    cat > /opt/health-tracker/ingress/index.html <<EOF
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Health Tracker</title></head>
+<body style="font-family:sans-serif;display:flex;height:100vh;align-items:center;justify-content:center;margin:0">
+<p>Opening <a href="${app_base_url}" target="_top">Health Tracker</a>&hellip;</p>
+<script>window.top.location.href = "${app_base_url}";</script>
+</body>
+</html>
+EOF
+else
+    cat > /opt/health-tracker/ingress/index.html <<'EOF'
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Health Tracker</title></head>
+<body style="font-family:sans-serif;display:flex;height:100vh;align-items:center;justify-content:center;margin:0">
+<p>Set the <b>app_base_url</b> option in the add-on configuration so this sidebar link knows where to send you.</p>
+</body>
+</html>
+EOF
+fi
+
 # ── nginx site config ─────────────────────────────────────────────────────────
 oidc_proxy_host="$(opt oidc_proxy_host)"
 

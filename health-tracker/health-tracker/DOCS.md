@@ -35,6 +35,14 @@
 | 4001/tcp | disabled | Direct Sparky bridge port. Only enable if a client can't use `/sparky` on the web port. |
 | 8002/tcp | disabled | Direct MCP port. Only enable if a client can't use `/mcp` on the web port. |
 
+## Sidebar
+
+The add-on supports Home Assistant's **Show in sidebar** toggle (on the
+add-on's Info page, enabled by default). Because the app runs its own login
+flow (HA OAuth or OIDC redirects), it can't be embedded in HA's ingress
+iframe — the sidebar entry instead opens the app at your `app_base_url`.
+Set that option or the sidebar link will only show a reminder to configure it.
+
 ## Authentication
 
 ### Home Assistant (default)

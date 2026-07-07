@@ -1,3 +1,20 @@
+# HA ingress endpoint — serves a breakout page that sends the browser to the
+# app's real URL (the app's own auth flows can't run inside the ingress iframe).
+server {
+    listen 8100;
+    server_name _;
+    root /opt/health-tracker/ingress;
+    index index.html;
+
+    allow 172.30.32.2;   # Supervisor ingress gateway
+    deny all;
+
+    location / {
+        add_header Cache-Control "no-store";
+        try_files /index.html =404;
+    }
+}
+
 server {
     listen 80;
     server_name _;
