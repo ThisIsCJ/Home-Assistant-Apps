@@ -1,5 +1,5 @@
 name: Site Editor
-version: "1.0.0"
+version: "1.0.1"
 slug: site_editor
 description: WYSIWYG editor for GitHub-backed static websites — edit, preview, draft and push
 arch:
