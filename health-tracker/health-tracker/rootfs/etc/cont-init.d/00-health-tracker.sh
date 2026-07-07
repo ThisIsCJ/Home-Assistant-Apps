@@ -32,6 +32,7 @@ ha_url="$(opt ha_url)"
 secret_key="$(opt secret_key)"
 
 set_env MONGODB_URL             "${mongodb_url}"
+set_env DB_NAME                 "$(opt database_name healthtracker)"
 set_env AUTH_METHOD             "${auth_method}"
 set_env HA_URL                  "${ha_url}"
 set_env HA_INTERNAL_URL         "$(opt ha_internal_url)"

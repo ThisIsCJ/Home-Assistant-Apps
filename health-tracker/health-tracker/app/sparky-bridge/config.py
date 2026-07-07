@@ -3,8 +3,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # MongoDB — same connection string as the Health Tracker API
+    # MongoDB — same connection string and database name as the Health Tracker API
     mongodb_url: str = "mongodb://localhost:27017"
+    db_name: str = "healthtracker"  # base name: <db_name>_app + <db_name>_u_<user_id>
 
     # Session-login mode only: email/password Sparky will accept at sign-in,
     # and the ht_ token returned as the session token.

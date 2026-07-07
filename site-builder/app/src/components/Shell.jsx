@@ -47,10 +47,19 @@ function AvatarMenu({ me, navigate }) {
 export function Shell({ children, title }) {
   const { me, sites } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('se_sidebar_collapsed') === '1');
   const navigate = useNavigate();
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      localStorage.setItem('se_sidebar_collapsed', c ? '0' : '1');
+      return !c;
+    });
+  };
 
   return (
     <div className="app-shell" data-mobile-nav={mobileOpen ? 'open' : 'closed'}
+      data-collapsed={collapsed ? 'true' : 'false'}
       onClick={(e) => { if (e.target.closest('.sidebar')) return; setMobileOpen(false); }}>
 
       <nav className="sidebar" onClick={(e) => { if (e.target.closest('.nav-item')) setMobileOpen(false); }}>
@@ -58,34 +67,36 @@ export function Shell({ children, title }) {
           <div className="sidebar-brand-logo">
             <Icons.Edit size={16} style={{ color: '#fff' }} />
           </div>
-          <div>
+          <div className="sidebar-brand-meta">
             <div className="sidebar-brand-text">Site Editor</div>
             <div className="sidebar-brand-sub">GitHub static sites</div>
           </div>
         </div>
 
         <div className="nav-section-label">Portal</div>
-        <NavLink to="/" end className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+        <NavLink to="/" end title="Home"
+          className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
           <Icons.Home size={15} />
-          Home
+          <span className="nav-label">Home</span>
         </NavLink>
 
         {sites.length > 0 && <div className="nav-section-label">Sites</div>}
         {sites.map((site) => (
-          <NavLink key={site.id} to={`/sites/${site.id}`}
+          <NavLink key={site.id} to={`/sites/${site.id}`} title={site.name}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
             <Icons.Globe size={15} />
-            <span className="truncate" style={{ flex: 1 }}>{site.name}</span>
-            {site.status !== 'ready' && <StatusIcon status={site.status} size={12} />}
-            {site.draft && <span className="badge badge-orange" title="You have a saved draft">draft</span>}
+            <span className="nav-label truncate" style={{ flex: 1 }}>{site.name}</span>
+            {site.status !== 'ready' && <span className="nav-extra"><StatusIcon status={site.status} size={12} /></span>}
+            {site.draft && <span className="nav-extra badge badge-orange" title="You have a saved draft">draft</span>}
           </NavLink>
         ))}
 
         <div className="sidebar-footer">
           {me?.isAdmin && (
-            <NavLink to="/admin" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+            <NavLink to="/admin" title="Admin"
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
               <Icons.Shield size={15} />
-              Admin
+              <span className="nav-label">Admin</span>
             </NavLink>
           )}
         </div>
@@ -96,6 +107,11 @@ export function Shell({ children, title }) {
           <button className="icon-btn menu-btn" aria-label="Menu"
             onClick={(e) => { e.stopPropagation(); setMobileOpen((o) => !o); }}>
             <Icons.Menu size={15} />
+          </button>
+          <button className="icon-btn collapse-btn" onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            {collapsed ? <Icons.ChevronRight size={15} /> : <Icons.ChevronLeft size={15} />}
           </button>
           <span className="topbar-title">{title}</span>
           <div className="topbar-spacer" />

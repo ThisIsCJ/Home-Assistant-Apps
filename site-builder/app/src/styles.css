@@ -1936,3 +1936,48 @@ html[data-size="xl"] { font-size: 22px; }
   .editor-files { width: 100%; min-width: 0; max-height: 200px; }
   .editor-stage { height: 70vh; }
 }
+
+/* ─── Sidebar collapse (desktop/tablet) ─────────────────────────────── */
+/* The topbar toggle shrinks the sidebar to icon-only. On mobile the
+   sidebar is an overlay drawer instead, so the collapsed state (and the
+   toggle itself) only exist at ≥600px. */
+.collapse-btn { display: none; }
+
+@media (min-width: 600px) {
+  .collapse-btn { display: inline-flex; }
+
+  .sidebar { transition: width 0.2s, min-width 0.2s; }
+
+  .app-shell[data-collapsed="true"] .sidebar {
+    width: 56px;
+    min-width: 56px;
+    padding: 12px 8px;
+    overflow-x: hidden;
+  }
+  .app-shell[data-collapsed="true"] .sidebar-brand {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .app-shell[data-collapsed="true"] .sidebar-brand-meta,
+  .app-shell[data-collapsed="true"] .nav-label,
+  .app-shell[data-collapsed="true"] .nav-extra {
+    display: none;
+  }
+  /* Section labels become thin dividers so grouping is still visible */
+  .app-shell[data-collapsed="true"] .nav-section-label {
+    font-size: 0;
+    padding: 4px 6px;
+  }
+  .app-shell[data-collapsed="true"] .nav-section-label::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: var(--border);
+  }
+  .app-shell[data-collapsed="true"] .nav-item {
+    justify-content: center;
+    padding: 7px 0;
+    gap: 0;
+  }
+}

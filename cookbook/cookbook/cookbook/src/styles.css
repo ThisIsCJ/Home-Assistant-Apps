@@ -3540,3 +3540,10 @@ table.data {
   opacity: 0;
   transition: opacity .15s;
 }
+
+/* Samsung Fold unfolded (~836px) — overrides the max-width:860px single-column rule */
+@media (min-width: 800px) and (max-width: 860px) {
+  .cookbook-results {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

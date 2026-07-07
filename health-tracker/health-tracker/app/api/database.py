@@ -9,8 +9,12 @@ from typing import Optional
 _client: Optional[AsyncIOMotorClient] = None
 _active_url: Optional[str] = None
 
-_APP_DB = "healthtracker_app"
-_USER_DB_PREFIX = "healthtracker_u_"
+def _app_db_name() -> str:
+    return f"{get_settings().db_name}_app"
+
+
+def _user_db_name(user_id: str) -> str:
+    return f"{get_settings().db_name}_u_{user_id}"
 
 
 # ── Config-file helpers ────────────────────────────────────────────────────────
@@ -124,11 +128,11 @@ def get_client() -> AsyncIOMotorClient:
 
 
 def get_app_db() -> AsyncIOMotorDatabase:
-    return get_client()[_APP_DB]
+    return get_client()[_app_db_name()]
 
 
 def get_user_db(user_id: str) -> AsyncIOMotorDatabase:
-    return get_client()[f"{_USER_DB_PREFIX}{user_id}"]
+    return get_client()[_user_db_name(user_id)]
 
 
 def get_db() -> AsyncIOMotorDatabase:

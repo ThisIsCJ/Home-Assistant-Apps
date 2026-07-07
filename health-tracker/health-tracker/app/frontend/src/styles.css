@@ -53,7 +53,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: width 0.18s, min-width 0.18s, transform 0.18s;
+  transition: width 0.18s, min-width 0.18s, transform 0.18s, padding 0.18s;
 }
 
 .app-shell[data-nav="collapsed"] .sidebar {
@@ -861,6 +861,14 @@ tbody tr.muted td { color: var(--muted2); }
 @media (min-width: 1024px) {
   .hamburger { display: none; }
   .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+  /* Collapse hides the sidebar entirely, like on small screens */
+  .app-shell[data-nav="collapsed"] .sidebar {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    border-right: none;
+    overflow: hidden;
+  }
 }
 
 @keyframes reminderSlideIn {

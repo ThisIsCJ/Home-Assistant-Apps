@@ -1,0 +1,93 @@
+configuration:
+  mongodb_url:
+    name: "Database: MongoDB URL"
+    description: >-
+      Connection string to your MongoDB server, e.g.
+      mongodb://user:pass@192.168.1.10:27017/?authSource=admin.
+      The add-on does not bundle MongoDB.
+  database_name:
+    name: "Database: Name"
+    description: >-
+      Base name for the MongoDB databases. The add-on creates
+      <name>_app (shared data) plus <name>_u_<user id> per user.
+      Changing this after first use starts over with empty databases —
+      existing data stays under the old name.
+  app_name:
+    name: "App: Display Name"
+    description: Display name shown in the web app.
+  app_base_url:
+    name: "App: Base URL"
+    description: >-
+      The public URL users reach the app at, e.g. https://health.example.com.
+      Used to build the Google Drive OAuth redirect URI
+      (<app_base_url>/api/gdrive/callback).
+  secret_key:
+    name: "App: Secret Key"
+    description: >-
+      Root secret used to sign login session tokens and to encrypt stored AI
+      provider keys and Google OAuth tokens. Generate with
+      python3 -c "import secrets; print(secrets.token_hex(32))".
+      Changing it later logs everyone out and makes previously encrypted
+      credentials unreadable.
+  environment:
+    name: "App: Environment"
+    description: >-
+      "development" enables the dev-token auth bypass. Never use in production.
+  cors_origins:
+    name: "App: CORS Origins"
+    description: >-
+      Comma-separated allowed origins for the API. Empty allows all — set this
+      in production.
+  auth_method:
+    name: "Auth: Method"
+    description: >-
+      How users sign in: home_assistant (your HA users) or oidc (Authentik or
+      any OIDC provider).
+  ha_url:
+    name: "Auth: Home Assistant URL"
+    description: >-
+      (home_assistant mode) The Home Assistant URL users' browsers can reach,
+      e.g. https://ha.example.com or http://192.168.1.10:8123. Login redirects
+      there.
+  ha_internal_url:
+    name: "Auth: Home Assistant Internal URL"
+    description: >-
+      (home_assistant mode) HA URL reachable from the add-on container for
+      server-side token exchange, if the main HA URL isn't (e.g. hairpin-NAT
+      issues). Try http://homeassistant:8123. Empty = use the HA URL.
+  oidc_authority:
+    name: "OIDC: Authority"
+    description: >-
+      (oidc mode) OIDC application URL, e.g.
+      https://auth.example.com/application/o/health-tracker.
+  oidc_client_id:
+    name: "OIDC: Client ID"
+    description: >-
+      (oidc mode) The OIDC client id (public PKCE client — no secret needed).
+  oidc_scope:
+    name: "OIDC: Scopes"
+    description: (oidc mode) OIDC scopes requested at login.
+  oidc_audience:
+    name: "OIDC: Audience"
+    description: >-
+      (oidc mode) Set if the provider issues tokens with a specific audience
+      claim.
+  oidc_proxy_host:
+    name: "OIDC: Proxy Host"
+    description: >-
+      (oidc mode) Authentik hostname (e.g. auth.example.com) to
+      same-origin-proxy /application/o/* and avoid CORS. Leave empty to skip
+      the proxy block.
+  usda_api_key:
+    name: "Integrations: USDA API Key"
+    description: FoodData Central key for USDA food search.
+  sparky_ignored_metrics:
+    name: "Integrations: Sparky Ignored Metrics"
+    description: >-
+      Comma-separated metric keys the Sparky bridge must not write (e.g.
+      steps) when another pipeline is authoritative. Per-user
+      Settings → Sync Sources overrides this.
+network:
+  80/tcp: Web UI (React SPA + API)
+  4001/tcp: Sparky bridge direct port (optional — also proxied at /sparky on the web port)
+  8002/tcp: MCP server for Claude Desktop (optional)

@@ -71,10 +71,10 @@ export function Cookbook({ accessToken, user, dbUser, siteConfig }) {
     const host = window.location.hostname.split('.')[0] || 'atlas';
     return host.toLowerCase();
   }, [siteConfig?.siteName]);
-  const listLoading = Boolean(accessToken && !recipesQuery.isFetched && !recipesQuery.isError);
+  const listLoading = Boolean(!recipesQuery.isFetched && !recipesQuery.isError);
   const listError = recipesQuery.error?.message || '';
   const recipeLoading = mode === 'detail'
-    ? Boolean(accessToken && recipeId && !recipeQuery.isFetched && !recipeQuery.isError)
+    ? Boolean(recipeId && !recipeQuery.isFetched && !recipeQuery.isError)
     : false;
   const [recipeError, setRecipeError] = useState('');
   const visibleRecipeError = recipeError || recipeQuery.error?.message || '';
@@ -87,7 +87,7 @@ export function Cookbook({ accessToken, user, dbUser, siteConfig }) {
       return;
     }
 
-    if (!accessToken || !recipeId) return;
+    if (!recipeId) return;
     setRecipeError('');
     if (recipeQuery.data?.recipe) {
       setActiveRecipe(normalizeRecipeForForm(recipeQuery.data.recipe, false));
@@ -225,6 +225,11 @@ export function Cookbook({ accessToken, user, dbUser, siteConfig }) {
     <>
       <div className="page__header">
         <div>
+          {mode !== 'landing' && (
+            <Link className="btn cookbook-back" to="/cookbook">
+              <Icons.ChevronLeft size={14} /> Back to recipes
+            </Link>
+          )}
           <h1 className="page__title">Cookbook</h1>
         </div>
         <div className="page__actions">

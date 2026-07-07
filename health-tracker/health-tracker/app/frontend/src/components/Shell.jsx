@@ -24,7 +24,7 @@ const BOTTOM_ITEMS = [
 export default function Shell({ children }) {
   const { profile, logout, isDevMode, accessToken } = useAuth();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('ht_nav_collapsed') === '1');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -32,6 +32,10 @@ export default function Shell({ children }) {
   const appName = getEnv('APP_NAME') || 'Health Tracker';
 
   const [dbAvatarUrl, setDbAvatarUrl] = useState(null);
+
+  useEffect(() => {
+    localStorage.setItem('ht_nav_collapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
 
   useEffect(() => {
     if (!accessToken) return;

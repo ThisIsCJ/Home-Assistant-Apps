@@ -71,6 +71,13 @@ body {
   font-weight: 650;
 }
 
+.cb-main .cookbook-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
 .cb-main .page__actions {
   display: flex;
   gap: 8px;

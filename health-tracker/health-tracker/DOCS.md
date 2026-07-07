@@ -13,6 +13,7 @@
 
 | Option | Default | Description |
 |---|---|---|
+| `database_name` | `healthtracker` | Base name for the MongoDB databases: `<name>_app` holds shared data, `<name>_u_<user id>` holds each user's data. Changing it after first use starts over with empty databases — existing data stays under the old name. |
 | `auth_method` | `home_assistant` | How users sign in: `home_assistant` (your HA users) or `oidc` (Authentik or any OIDC provider). |
 | `ha_internal_url` | *(empty)* | HA URL reachable **from the add-on container** for server-side token exchange, if `ha_url` isn't (e.g. hairpin-NAT issues). Try `http://homeassistant:8123`. Empty = use `ha_url`. |
 | `oidc_authority` | *(empty)* | *(oidc mode)* OIDC application URL, e.g. `https://auth.example.com/application/o/health-tracker`. |

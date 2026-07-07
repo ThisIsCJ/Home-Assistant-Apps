@@ -4,6 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     mongodb_url: str = "mongodb://mongo:27017"
+    db_name: str = "healthtracker"  # base name: <db_name>_app + <db_name>_u_<user_id>
     auth_method: str = "home_assistant"  # home_assistant | oidc
     ha_url: str = ""            # HA URL the user's browser can reach (login redirect)
     ha_internal_url: str = ""   # HA URL reachable from this container; falls back to ha_url
