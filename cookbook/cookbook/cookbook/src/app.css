@@ -1,0 +1,78 @@
+/* Standalone layout for the Home Assistant add-on. The heavy lifting (panels,
+   buttons, fields, cookbook-specific classes) lives in styles.css, copied from
+   the original app. This file only supplies the outer shell that Shell.jsx
+   used to provide. */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+}
+
+.cb-app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.cb-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--h-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.cb-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--fg);
+}
+
+.cb-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 22px 18px 48px;
+  box-sizing: border-box;
+}
+
+/* The page header inside the Cookbook component */
+.cb-main .page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.cb-main .page__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.cb-main .page__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

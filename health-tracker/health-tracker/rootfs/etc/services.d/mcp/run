@@ -1,0 +1,4 @@
+#!/usr/bin/with-contenv bashio
+bashio::log.info "Starting MCP server..."
+cd /opt/health-tracker/mcp
+exec /opt/venv-mcp/bin/python server.py

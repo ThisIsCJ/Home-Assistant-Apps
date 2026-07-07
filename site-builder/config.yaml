@@ -1,0 +1,45 @@
+name: Site Editor
+version: "1.0.0"
+slug: site_editor
+description: WYSIWYG editor for GitHub-backed static websites — edit, preview, draft and push
+arch:
+  - amd64
+  - aarch64
+# The HA base image ships s6-overlay, which must run as PID 1
+init: false
+startup: services
+boot: auto
+# Stop the add-on while a backup runs so the SQLite database and cloned
+# repositories in /data are captured in a consistent state.
+backup: cold
+# Restart the add-on if nginx stops accepting connections.
+watchdog: tcp://[HOST]:8099
+# Served exclusively through Home Assistant ingress — no host ports are
+# exposed, and HA handles authentication for every request.
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:file-document-edit
+panel_title: Site Editor
+# Show the panel to all Home Assistant users, not just HA administrators.
+# App-admin rights are governed separately by the `admins` option below —
+# HA users not listed there get regular (non-admin) access to the sites
+# they have been assigned.
+panel_admin: false
+options:
+  admins: []
+  app:
+    data_path: /data
+    repo_path: /data/repos
+    draft_path: /data/drafts
+  log_level: info
+schema:
+  # HA usernames that get app-admin rights (manage sites, SSH keys, access).
+  # Empty list = every HA user who can open the panel is an admin — the
+  # sensible default on a single-user installation.
+  admins:
+    - username: str
+  app:
+    data_path: str
+    repo_path: str
+    draft_path: str
+  log_level: list(debug|info|warning|error)

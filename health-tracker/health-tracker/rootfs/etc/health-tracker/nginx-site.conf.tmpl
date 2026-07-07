@@ -1,0 +1,85 @@
+server {
+    listen 80;
+    server_name _;
+    root /opt/health-tracker/www;
+    index index.html;
+
+    client_max_body_size 25m;
+
+    # Serve the runtime env config
+    location = /env-config.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        try_files $uri =404;
+    }
+
+    # BEGIN oidc-proxy
+    # Proxy Authentik OIDC endpoints — eliminates cross-origin CORS issues
+    location /application/o/ {
+        proxy_pass https://{{OIDC_PROXY_HOST}};
+        proxy_set_header Host {{OIDC_PROXY_HOST}};
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_ssl_server_name on;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    }
+    # END oidc-proxy
+
+    # MCP SSE server — long-lived connections, no buffering
+    location /mcp/ {
+        proxy_pass http://127.0.0.1:8002/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Authorization $http_authorization;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        chunked_transfer_encoding on;
+    }
+
+    # Sparky bridge — mobile app sync. The bridge mounts itself at /sparky
+    # (ROOT_PATH), so pass the path through unstripped.
+    location /sparky/ {
+        proxy_pass http://127.0.0.1:4001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Authorization $http_authorization;
+        proxy_read_timeout 120s;
+        add_header Cache-Control "no-store";
+    }
+
+    # Proxy API requests to the FastAPI service
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        # No caching for API
+        add_header Cache-Control "no-store";
+    }
+
+    # SPA fallback — all other routes serve index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
+    gzip_min_length 1000;
+}

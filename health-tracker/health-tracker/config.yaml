@@ -1,0 +1,47 @@
+name: Health Tracker
+version: "1.0.0"
+slug: health_tracker
+description: Self-hosted health tracker — nutrition, medications, workouts, health metrics, AI import, Health Connect sync
+url: https://health.cjsaba.com
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+webui: "http://[HOST]:[PORT:80]"
+ports:
+  80/tcp: 8099
+  4001/tcp: null
+  8002/tcp: null
+ports_description:
+  80/tcp: Web UI (React SPA + API)
+  4001/tcp: Sparky bridge direct port (optional — also proxied at /sparky on the web port)
+  8002/tcp: MCP server for Claude Desktop (optional)
+options:
+  mongodb_url: ""
+  oidc_authority: ""
+  oidc_client_id: ""
+  oidc_proxy_host: ""
+  secret_key: ""
+  app_base_url: ""
+  app_name: "Health Tracker"
+  oidc_scope: "openid profile email"
+  oidc_audience: ""
+  usda_api_key: ""
+  cors_origins: ""
+  environment: production
+  sparky_ignored_metrics: ""
+schema:
+  mongodb_url: str
+  oidc_authority: url
+  oidc_client_id: str
+  oidc_proxy_host: "str?"
+  secret_key: password
+  app_base_url: url
+  app_name: "str?"
+  oidc_scope: "str?"
+  oidc_audience: "str?"
+  usda_api_key: "password?"
+  cors_origins: "str?"
+  environment: "list(production|development)"
+  sparky_ignored_metrics: "str?"

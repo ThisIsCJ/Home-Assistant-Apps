@@ -1,0 +1,6 @@
+#!/usr/bin/with-contenv bashio
+bashio::log.info "Starting Sparky bridge..."
+cd /opt/health-tracker/sparky-bridge
+# 0.0.0.0 so the optional direct port mapping (4001) works; nginx also
+# proxies it at /sparky on the web port.
+exec /opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port 4001

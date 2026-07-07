@@ -1,0 +1,16 @@
+configuration:
+  admins:
+    name: Admin users
+    description: >-
+      Home Assistant usernames that get app-admin rights (manage sites, SSH
+      keys and user access). An empty list makes every HA user an admin —
+      sensible on a single-user installation.
+  app:
+    name: Application paths
+    description: >-
+      Storage locations inside the container. Leave at the defaults unless you
+      know why you are changing them; everything must stay under /data to be
+      persistent and included in backups.
+  log_level:
+    name: Log level
+    description: Controls the verbosity of the add-on log.
