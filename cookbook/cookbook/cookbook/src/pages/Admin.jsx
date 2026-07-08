@@ -7,6 +7,8 @@ export function Admin({ me }) {
   const [users, setUsers] = useState([]);
   const [accessMode, setAccessMode] = useState('everyone');
   const [allowedUserIds, setAllowedUserIds] = useState([]);
+  const [allowedUserNames, setAllowedUserNames] = useState([]);
+  const [nameDraft, setNameDraft] = useState('');
   const [accessError, setAccessError] = useState('');
   const [accessLoading, setAccessLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,6 +27,7 @@ export function Admin({ me }) {
         setUsers(res.users || []);
         setAccessMode(res.access?.mode === 'selected' ? 'selected' : 'everyone');
         setAllowedUserIds(res.access?.allowedUserIds || []);
+        setAllowedUserNames(res.access?.allowedUserNames || []);
       })
       .catch((err) => setAccessError(err.message))
       .finally(() => setAccessLoading(false));
@@ -51,13 +54,27 @@ export function Admin({ me }) {
       : [...prev, userId]);
   };
 
+  const addName = () => {
+    const name = nameDraft.trim();
+    if (!name) return;
+    setAllowedUserNames((prev) => (
+      prev.some((n) => n.toLowerCase() === name.toLowerCase()) ? prev : [...prev, name]
+    ));
+    setNameDraft('');
+  };
+
+  const removeName = (name) => {
+    setAllowedUserNames((prev) => prev.filter((n) => n !== name));
+  };
+
   const saveAccess = async () => {
     setSaving(true);
     setAccessError('');
     try {
-      const res = await api.put('/cookbook/admin/access', { mode: accessMode, allowedUserIds });
+      const res = await api.put('/cookbook/admin/access', { mode: accessMode, allowedUserIds, allowedUserNames });
       setAccessMode(res.access?.mode === 'selected' ? 'selected' : 'everyone');
       setAllowedUserIds(res.access?.allowedUserIds || []);
+      setAllowedUserNames(res.access?.allowedUserNames || []);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -155,6 +172,47 @@ export function Admin({ me }) {
                         No users yet. Users appear here after they open the cookbook once.
                       </div>
                     )}
+
+                    <div className="admin-access__add">
+                      <div className="field__label">
+                        Add a user by name (for people who haven't opened the cookbook yet)
+                      </div>
+                      <div className="admin-access__add-row">
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="Home Assistant username or name"
+                          value={nameDraft}
+                          onChange={(e) => setNameDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addName();
+                            }
+                          }}
+                        />
+                        <button type="button" className="btn" onClick={addName} disabled={!nameDraft.trim()}>
+                          <Icons.Plus size={13} /> Add
+                        </button>
+                      </div>
+                      {allowedUserNames.length > 0 && (
+                        <div className="cookbook-category-picker">
+                          {allowedUserNames.map((name) => (
+                            <span key={name} className="access-chip is-active">
+                              <span>{name}</span>
+                              <button
+                                type="button"
+                                className="access-chip__remove"
+                                aria-label={`Remove ${name}`}
+                                onClick={() => removeName(name)}
+                              >
+                                <Icons.X size={12} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

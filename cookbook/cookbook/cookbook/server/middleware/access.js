@@ -6,7 +6,7 @@ const ACCESS_DOC_ID = 'access';
 const ACCESS_CACHE_TTL_MS = 10_000;
 const USER_RECORD_TTL_MS = 5 * 60_000;
 
-export const DEFAULT_ACCESS = { mode: 'everyone', allowedUserIds: [] };
+export const DEFAULT_ACCESS = { mode: 'everyone', allowedUserIds: [], allowedUserNames: [] };
 
 let accessCache = null;
 let accessCacheAt = 0;
@@ -28,7 +28,14 @@ export async function setAccessConfig(input) {
   const config = normalizeAccessConfig(input);
   await getDb().collection(CONFIG_COLLECTION).updateOne(
     { _id: ACCESS_DOC_ID },
-    { $set: { mode: config.mode, allowedUserIds: config.allowedUserIds, updatedAt: new Date() } },
+    {
+      $set: {
+        mode: config.mode,
+        allowedUserIds: config.allowedUserIds,
+        allowedUserNames: config.allowedUserNames,
+        updatedAt: new Date(),
+      },
+    },
     { upsert: true }
   );
   accessCache = config;
@@ -41,7 +48,22 @@ function normalizeAccessConfig(doc) {
   const allowedUserIds = Array.isArray(doc?.allowedUserIds)
     ? [...new Set(doc.allowedUserIds.map((id) => `${id || ''}`.trim()).filter(Boolean))]
     : [];
-  return { mode, allowedUserIds };
+  // Manually-added names for users who haven't opened the cookbook yet (so they
+  // have no recorded id). Original casing is preserved for display; matching is
+  // case-insensitive (see requireAccess). Dedup ignores case.
+  const seenNames = new Set();
+  const allowedUserNames = Array.isArray(doc?.allowedUserNames)
+    ? doc.allowedUserNames.reduce((acc, raw) => {
+        const name = `${raw || ''}`.trim();
+        const key = name.toLowerCase();
+        if (name && !seenNames.has(key)) {
+          seenNames.add(key);
+          acc.push(name);
+        }
+        return acc;
+      }, [])
+    : [];
+  return { mode, allowedUserIds, allowedUserNames };
 }
 
 export async function listKnownUsers() {
@@ -86,6 +108,15 @@ export async function requireAccess(req, res, next) {
     const config = await getAccessConfig();
     if (config.mode !== 'selected') return next();
     if (config.allowedUserIds.includes(req.user?.id)) return next();
+    // Fall back to matching by name for users granted access before they were
+    // ever recorded (matched against username or display name, lowercased).
+    if (config.allowedUserNames.length) {
+      const allowed = config.allowedUserNames.map((n) => n.toLowerCase());
+      const candidates = [req.user?.username, req.user?.displayName, req.user?.name]
+        .map((n) => `${n || ''}`.trim().toLowerCase())
+        .filter(Boolean);
+      if (candidates.some((name) => allowed.includes(name))) return next();
+    }
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

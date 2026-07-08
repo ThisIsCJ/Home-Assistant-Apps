@@ -36,7 +36,11 @@ router.put('/access', ...requireCookbookAdmin, async (req, res) => {
   }
 
   try {
-    const access = await setAccessConfig({ mode, allowedUserIds: req.body?.allowedUserIds });
+    const access = await setAccessConfig({
+      mode,
+      allowedUserIds: req.body?.allowedUserIds,
+      allowedUserNames: req.body?.allowedUserNames,
+    });
     res.json({ ok: true, access });
   } catch (err) {
     res.status(500).json({ error: err.message });

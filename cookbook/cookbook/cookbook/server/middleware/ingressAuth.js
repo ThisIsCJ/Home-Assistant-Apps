@@ -25,6 +25,10 @@ export function ingressUser(req, _res, next) {
   req.user = {
     id,
     name,
+    // Raw identity strings kept so access-by-name can match either the HA
+    // username or the friendly display name (see requireAccess).
+    username,
+    displayName,
     email: '',
     // The recipe/review routes look at `isAdmin` to decide edit rights.
     isAdmin,
