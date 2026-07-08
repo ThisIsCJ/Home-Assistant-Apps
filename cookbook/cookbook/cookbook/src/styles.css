@@ -3569,9 +3569,13 @@ table.data {
   transition: opacity .15s;
 }
 
-/* Samsung Fold unfolded (~836px) — overrides the max-width:860px single-column rule */
-@media (min-width: 800px) and (max-width: 860px) {
+/* Tablet / unfolded-foldable band. The max-width:860px block collapses the
+   recipe grid to a single column for phones, but a Samsung Fold (and small
+   tablets) report a CSS viewport around 650–800px and should show rows of 3.
+   The lower bound (540px) sits above phone portrait widths (~430px) and below
+   any unfolded width, so real phones stay single-column. */
+@media (min-width: 540px) and (max-width: 860px) {
   .cookbook-results {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
