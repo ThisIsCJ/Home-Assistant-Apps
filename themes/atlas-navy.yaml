@@ -1,0 +1,235 @@
+# Atlas Navy — Home Assistant theme
+# Generated from DESIGN-SYSTEM.md: dark, layered navy depth with a blue accent,
+# JetBrains Mono for data, DM Sans for body text, and glowing interactive states.
+#
+# Install:
+#   1. Copy this file into your HA config `themes/` directory
+#      (add `frontend: { themes: !include_dir_merge_named themes }` to configuration.yaml).
+#   2. Restart HA (or call service `frontend.reload_themes`).
+#   3. Pick "Atlas Navy" in Profile → Themes.
+#
+# Fonts: HA cannot self-load Google Fonts from a theme. To get DM Sans / JetBrains
+# Mono, add this to configuration.yaml `frontend:` block so the links are injected:
+#   frontend:
+#     extra_module_url: []
+# or add via a custom resource. Falls back to system-ui / monospace otherwise.
+
+Atlas Navy:
+  # ----------------------------------------------------------------------------
+  # Design-system source palette (kept as reference tokens)
+  # ----------------------------------------------------------------------------
+  ds-bg: "#090e1a"        # page background — deepest navy
+  ds-surface: "#0f172a"   # sidebar, topbar, modals
+  ds-card: "#131f35"      # cards and panels
+  ds-card2: "#1a2744"     # elevated card variant
+  ds-border: "#1e3050"    # subtle dividers
+  ds-border2: "#243660"   # stronger borders
+  ds-text: "#e2e8f0"      # primary text
+  ds-muted: "#64748b"     # secondary / placeholder
+  ds-muted2: "#94a3b8"    # mid-weight labels
+  ds-accent: "#3b82f6"    # primary blue
+  ds-accent2: "#60a5fa"   # lighter blue — active/highlight
+  ds-green: "#10b981"
+  ds-green2: "#34d399"
+  ds-orange: "#f59e0b"
+  ds-red: "#ef4444"
+  ds-purple: "#a855f7"
+
+  # ----------------------------------------------------------------------------
+  # Fonts
+  # ----------------------------------------------------------------------------
+  primary-font-family: "DM Sans, system-ui, -apple-system, Roboto, sans-serif"
+  paper-font-common-base_-_font-family: "DM Sans, system-ui, sans-serif"
+  paper-font-common-code_-_font-family: "JetBrains Mono, ui-monospace, monospace"
+  code-font-family: "JetBrains Mono, ui-monospace, monospace"
+
+  # ----------------------------------------------------------------------------
+  # Core accent / brand
+  # ----------------------------------------------------------------------------
+  primary-color: "#3b82f6"                 # --accent
+  dark-primary-color: "#2563eb"            # gradient end / pressed
+  light-primary-color: "#60a5fa"           # --accent2
+  accent-color: "#60a5fa"
+
+  # ----------------------------------------------------------------------------
+  # Backgrounds — layered from darkest to lightest
+  # ----------------------------------------------------------------------------
+  primary-background-color: "#090e1a"      # --bg (page)
+  secondary-background-color: "#0f172a"    # --surface (behind cards)
+  divider-color: "#1e3050"                 # --border
+  scrollbar-thumb-color: "#243660"         # --border2
+
+  # Cards / surfaces
+  card-background-color: "#131f35"         # --card
+  ha-card-background: "#131f35"
+  paper-card-background-color: "#131f35"
+  ha-card-border-radius: "9px"
+  ha-card-border-width: "1px"
+  ha-card-border-color: "#1e3050"          # --border
+  ha-card-box-shadow: "none"
+
+  # Popups / dialogs / modals — use --surface
+  mdc-dialog-scrim-color: "rgba(0,0,0,0.6)"
+  dialog-backdrop-filter: "blur(4px)"
+  ha-dialog-border-radius: "12px"
+
+  # ----------------------------------------------------------------------------
+  # Text
+  # ----------------------------------------------------------------------------
+  primary-text-color: "#e2e8f0"            # --text
+  secondary-text-color: "#94a3b8"          # --muted2
+  text-primary-color: "#ffffff"            # text on accent
+  disabled-text-color: "#64748b"           # --muted
+  app-header-text-color: "#e2e8f0"
+
+  # ----------------------------------------------------------------------------
+  # Header / toolbar (topbar) — 46px feel, --surface bg
+  # ----------------------------------------------------------------------------
+  app-header-background-color: "#0f172a"   # --surface
+  app-header-selection-bar-color: "#3b82f6"
+  app-toolbar-background-color: "#0f172a"
+
+  # ----------------------------------------------------------------------------
+  # Sidebar
+  # ----------------------------------------------------------------------------
+  sidebar-background-color: "#0f172a"                    # --surface
+  sidebar-text-color: "#94a3b8"                          # --muted2
+  sidebar-icon-color: "#94a3b8"
+  sidebar-selected-background-color: "rgba(59,130,246,0.12)"
+  sidebar-selected-text-color: "#60a5fa"                 # --accent2
+  sidebar-selected-icon-color: "#60a5fa"
+
+  # ----------------------------------------------------------------------------
+  # Semantic / state colors
+  # ----------------------------------------------------------------------------
+  success-color: "#10b981"                 # --green
+  warning-color: "#f59e0b"                  # --orange
+  error-color: "#ef4444"                    # --red
+  info-color: "#3b82f6"
+
+  # Entity on/off states
+  state-icon-color: "#94a3b8"
+  state-icon-active-color: "#60a5fa"        # active = accent2
+  state-on-color: "#34d399"                 # --green2
+  state-off-color: "#64748b"                # --muted
+  paper-item-icon-active-color: "#60a5fa"
+  paper-item-icon-color: "#94a3b8"
+
+  # Domain-specific state colors (map to the semantic palette)
+  state-light-active-color: "#f59e0b"       # lights warm → orange
+  state-switch-active-color: "#60a5fa"
+  state-fan-active-color: "#34d399"
+  state-climate-heat-color: "#f59e0b"
+  state-climate-cool-color: "#3b82f6"
+  state-binary_sensor-active-color: "#f59e0b"
+  state-alarm_control_panel-armed-color: "#ef4444"
+  state-alarm_control_panel-disarmed-color: "#34d399"
+
+  # ----------------------------------------------------------------------------
+  # Buttons / toggles / controls
+  # ----------------------------------------------------------------------------
+  mdc-theme-primary: "#3b82f6"
+  mdc-theme-secondary: "#60a5fa"
+  mdc-theme-on-primary: "#ffffff"
+  switch-checked-color: "#3b82f6"
+  switch-unchecked-color: "#243660"
+  paper-toggle-button-checked-bar-color: "#3b82f6"
+  paper-toggle-button-checked-button-color: "#60a5fa"
+  paper-slider-active-color: "#3b82f6"
+  paper-slider-knob-color: "#60a5fa"
+  paper-slider-secondary-color: "#243660"
+  ha-slider-color: "#3b82f6"
+
+  # Toggle button group (segmented control feel)
+  mdc-checkbox-unchecked-color: "#243660"
+  mdc-checkbox-ink-color: "#ffffff"
+
+  # ----------------------------------------------------------------------------
+  # Inputs / text fields
+  # ----------------------------------------------------------------------------
+  input-fill-color: "#131f35"              # --card
+  input-ink-color: "#e2e8f0"
+  input-label-ink-color: "#94a3b8"
+  input-disabled-fill-color: "#0f172a"
+  input-idle-line-color: "#243660"          # --border2
+  input-hover-line-color: "#60a5fa"
+  input-outlined-idle-border-color: "#243660"
+  input-outlined-hover-border-color: "#60a5fa"
+  mdc-text-field-fill-color: "#131f35"
+  mdc-text-field-ink-color: "#e2e8f0"
+  mdc-text-field-label-ink-color: "#94a3b8"
+  mdc-select-fill-color: "#131f35"
+  mdc-select-ink-color: "#e2e8f0"
+
+  # ----------------------------------------------------------------------------
+  # Chips / badges / labels
+  # ----------------------------------------------------------------------------
+  ha-chip-background-color: "rgba(59,130,246,0.15)"
+  ha-chip-text-color: "#60a5fa"
+  label-badge-background-color: "#131f35"
+  label-badge-text-color: "#e2e8f0"
+  label-badge-red: "#ef4444"
+  label-badge-green: "#10b981"
+  label-badge-blue: "#3b82f6"
+  label-badge-yellow: "#f59e0b"
+  label-badge-grey: "#64748b"
+
+  # ----------------------------------------------------------------------------
+  # Table / data-table (JetBrains Mono, --surface headers)
+  # ----------------------------------------------------------------------------
+  data-table-background-color: "#131f35"
+  table-row-background-color: "#131f35"
+  table-row-alternative-background-color: "#0f172a"
+  mdc-data-table-header-text-color: "#64748b"
+  mdc-data-table-row-hover-fill-color: "rgba(59,130,246,0.04)"
+
+  # ----------------------------------------------------------------------------
+  # Sliders / gauges / graphs
+  # ----------------------------------------------------------------------------
+  gauge-color: "#3b82f6"
+  gauge-warning-color: "#f59e0b"
+  gauge-error-color: "#ef4444"
+  history-unavailable-color: "#243660"
+  disabled-color: "#64748b"
+
+  # Sensor / graph line colors
+  graph-color-1: "#60a5fa"
+  graph-color-2: "#34d399"
+  graph-color-3: "#f59e0b"
+  graph-color-4: "#a855f7"
+  graph-color-5: "#ef4444"
+
+  # ----------------------------------------------------------------------------
+  # RGB variants (HA uses these for alpha compositing)
+  # ----------------------------------------------------------------------------
+  rgb-primary-color: "59,130,246"
+  rgb-accent-color: "96,165,250"
+  rgb-primary-text-color: "226,232,240"
+  rgb-secondary-text-color: "148,163,184"
+  rgb-card-background-color: "19,31,53"
+  rgb-state-icon-active-color: "96,165,250"
+  rgb-success-color: "16,185,129"
+  rgb-warning-color: "245,158,11"
+  rgb-error-color: "239,68,68"
+  rgb-info-color: "59,130,246"
+
+  # ----------------------------------------------------------------------------
+  # Code / markdown blocks
+  # ----------------------------------------------------------------------------
+  markdown-code-background-color: "#0f172a"
+  code-editor-background-color: "#0f172a"
+
+  # ----------------------------------------------------------------------------
+  # Modes — let HA know this is a dark theme (used by auto light/dark switching)
+  # ----------------------------------------------------------------------------
+  modes:
+    dark:
+      primary-background-color: "#090e1a"
+      secondary-background-color: "#0f172a"
+      card-background-color: "#131f35"
+    light:
+      # This design system is dark-only; keep the dark palette even in light mode
+      # so the identity is preserved. Remove this block to let HA fall back.
+      primary-background-color: "#090e1a"
+      secondary-background-color: "#0f172a"
+      card-background-color: "#131f35"
