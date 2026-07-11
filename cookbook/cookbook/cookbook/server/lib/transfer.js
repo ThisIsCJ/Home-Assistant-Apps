@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { ObjectId } from 'mongodb';
 import AdmZip from 'adm-zip';
 import { getDb } from '../db.js';
@@ -18,6 +18,9 @@ import { getDb } from '../db.js';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/data/uploads';
 const COLLECTION = 'cookbookRecipes';
+// Content-hash index for imported image bytes. Lets a recurring sync reuse an
+// image already on disk instead of writing a byte-identical copy every run.
+const IMAGE_HASH_COLLECTION = 'cookbookImageHashes';
 const FORMAT = 'atlas-cookbook-export';
 const VERSION = 2;            // 2 = zip archive; 1 = legacy base64-inlined JSON
 const MANIFEST_NAME = 'cookbook.json';
@@ -79,7 +82,16 @@ export async function buildExport() {
 
 // `input` is the raw uploaded bytes. It may be a v2 zip archive or a legacy v1
 // JSON archive (base64-inlined image bytes) — both are accepted.
-export async function importArchive(input, user) {
+//
+// `mode` controls how the archive merges into the target instance:
+//   'additive' (default) — the Import button. Every recipe is inserted as a new
+//     document (its original _id kept only if still free), so re-importing the
+//     same archive piles up copies. Images always get a fresh filename.
+//   'sync' — used by Recipe Sync. Recipes are upserted by their original _id
+//     (updated in place, never duplicated) and images are de-duplicated by
+//     content hash, so running the same sync repeatedly is idempotent.
+export async function importArchive(input, user, { mode = 'additive' } = {}) {
+  const sync = mode === 'sync';
   const { manifest, imageBytes } = readArchive(input);
 
   if (!manifest || manifest.format !== FORMAT) {
@@ -92,9 +104,10 @@ export async function importArchive(input, user) {
   const images = Array.isArray(manifest.images) ? manifest.images : [];
   const recipes = Array.isArray(manifest.recipes) ? manifest.recipes : [];
 
-  // 1. Re-store every image under a fresh filename, mapping old → new so
-  //    recipe references can be rewritten. This guarantees an import can never
-  //    overwrite an image already on disk.
+  // 1. Store every image, mapping its old filename → the new "api/uploads/…"
+  //    URL so recipe references can be rewritten. Additive imports always write
+  //    a fresh copy (never overwriting a file on disk); sync de-duplicates by
+  //    content hash so recurring pulls don't bloat the uploads volume.
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   const nameMap = new Map();
   let imageCount = 0;
@@ -104,16 +117,27 @@ export async function importArchive(input, user) {
     const bytes = imageBytes(image);
     if (!oldName || !bytes) continue;
 
-    const newName = `${randomUUID()}${extFor(oldName)}`;
-    await fs.promises.writeFile(path.join(UPLOAD_DIR, newName), bytes);
-    nameMap.set(oldName, `api/uploads/${newName}`);
+    nameMap.set(oldName, await storeImage(bytes, oldName, { dedupe: sync }));
     imageCount += 1;
   }
 
-  // 2. Rewrite and insert each recipe.
+  // 2. Rewrite and insert/upsert each recipe.
   const collection = getDb().collection(COLLECTION);
-  let recipeCount = 0;
 
+  if (sync) {
+    // Upsert by original _id: existing recipes are replaced in place, new ones
+    // inserted. A recipe with no usable id is skipped (sync needs a stable id).
+    const ops = [];
+    for (const raw of recipes) {
+      const recipe = reviveRecipe(raw, nameMap, user);
+      if (!recipe._id) continue;
+      ops.push({ replaceOne: { filter: { _id: recipe._id }, replacement: recipe, upsert: true } });
+    }
+    if (ops.length) await collection.bulkWrite(ops, { ordered: false });
+    return { recipes: ops.length, images: imageCount };
+  }
+
+  let recipeCount = 0;
   for (const raw of recipes) {
     const recipe = reviveRecipe(raw, nameMap, user);
 
@@ -129,6 +153,36 @@ export async function importArchive(input, user) {
   }
 
   return { recipes: recipeCount, images: imageCount };
+}
+
+// Write image bytes to the uploads volume and return their "api/uploads/<file>"
+// URL. With { dedupe: true }, an identical payload already stored (matched by
+// SHA-256 in the cookbookImageHashes index, with the file still present on
+// disk) is reused instead of writing a byte-for-byte duplicate.
+async function storeImage(bytes, oldName, { dedupe = false } = {}) {
+  const ext = extFor(oldName);
+
+  if (dedupe) {
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    const index = getDb().collection(IMAGE_HASH_COLLECTION);
+    const existing = await index.findOne({ _id: hash });
+    if (existing?.filename && fs.existsSync(path.join(UPLOAD_DIR, existing.filename))) {
+      return `api/uploads/${existing.filename}`;
+    }
+
+    const newName = `${randomUUID()}${ext}`;
+    await fs.promises.writeFile(path.join(UPLOAD_DIR, newName), bytes);
+    await index.updateOne(
+      { _id: hash },
+      { $set: { filename: newName, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+      { upsert: true }
+    );
+    return `api/uploads/${newName}`;
+  }
+
+  const newName = `${randomUUID()}${ext}`;
+  await fs.promises.writeFile(path.join(UPLOAD_DIR, newName), bytes);
+  return `api/uploads/${newName}`;
 }
 
 // --- Helpers ---------------------------------------------------------------

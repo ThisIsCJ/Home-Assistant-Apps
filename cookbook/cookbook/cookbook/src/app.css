@@ -163,3 +163,151 @@ body {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* Recipe sync */
+.btn--sm {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.sync-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.sync-section > .admin-access__add-row,
+.sync-section > .sync-list,
+.sync-section > .sync-form {
+  width: 100%;
+}
+
+.sync-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync-link,
+.sync-source,
+.sync-form {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  background: var(--panel-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-link__head,
+.sync-source__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sync-link__label,
+.sync-source__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.sync-source__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sync-source__url {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-subtle);
+  word-break: break-all;
+}
+
+.sync-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sync-field__row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sync-field__input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.sync-badge {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--fg-subtle);
+  font-weight: 500;
+}
+
+.sync-status {
+  font-size: 12px;
+  border-radius: var(--radius);
+  padding: 6px 9px;
+  background: var(--panel);
+}
+
+.sync-status--ok { color: var(--fg-subtle); }
+.sync-status--error { color: oklch(0.6 0.17 25); }
+
+.sync-form__title {
+  font-weight: 600;
+}
+
+.sync-schedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sync-schedule .input,
+.sync-schedule select.input {
+  width: auto;
+}
+
+.sync-schedule__inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--fg-subtle);
+}
+
+.sync-schedule__num {
+  width: 84px;
+}
+
+.sync-form__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.sync-form__actions {
+  display: flex;
+  gap: 8px;
+}

@@ -5,6 +5,7 @@ import express from 'express';
 import { connect, isConnected, getConnectionError } from './db.js';
 import { getMongoUri, getConfigSummary } from './config.js';
 import { ingressUser } from './middleware/ingressAuth.js';
+import { startSyncScheduler } from './lib/sync.js';
 import cookbookRouter from './routes/cookbook.js';
 import cookbookAdminRouter from './routes/cookbookAdmin.js';
 import uploadsRouter from './routes/uploads.js';
@@ -74,6 +75,8 @@ async function start() {
     try {
       await connect();
       console.log(`Cookbook connected to MongoDB (${getConfigSummary().database})`);
+      // Recipe Sync's in-process scheduler advances only while connected.
+      startSyncScheduler();
     } catch (err) {
       console.error('Cookbook MongoDB connection failed:', err.message);
       console.error('The UI will load but recipe endpoints return 503 until MongoDB is reachable.');

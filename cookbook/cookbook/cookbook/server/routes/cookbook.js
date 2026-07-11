@@ -1,11 +1,23 @@
 import { ObjectId } from 'mongodb';
 import { Router } from 'express';
 import { ingressUser } from '../middleware/ingressAuth.js';
-import { recordUser, requireAccess } from '../middleware/access.js';
+import { recordUser, requireAccess, requireAdmin } from '../middleware/access.js';
 import { getDb, isConnected } from '../db.js';
+import { buildExport } from '../lib/transfer.js';
+import {
+  requireSyncSecret,
+  getSyncConfig,
+  createInbound,
+  deleteInbound,
+  createOutbound,
+  updateOutbound,
+  deleteOutbound,
+  runOutboundById,
+} from '../lib/sync.js';
 
 const router = Router();
 const requireCookbookAccess = [ingressUser, recordUser, requireAccess];
+const requireCookbookAdmin = [ingressUser, recordUser, requireAdmin];
 const COLLECTION = 'cookbookRecipes';
 const DEFAULT_CATEGORIES = ['Appetizers', 'Soups', 'Sauces', 'Vegetarian', 'Seafood', 'Meat', 'Desserts'];
 const AMOUNT_TOKEN_PATTERN = String.raw`(?:\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+\s*[¼½¾⅓⅔⅛⅜⅝⅞⅙⅚⅕⅖⅗⅘]|\d+(?:\.\d+)?|\.\d+|[¼½¾⅓⅔⅛⅜⅝⅞⅙⅚⅕⅖⅗⅘])`;
@@ -931,6 +943,109 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// --- Recipe Sync -----------------------------------------------------------
+// See ../../RECIPE_SYNC.md. The pull route is gated by a shared sync secret
+// (not ingress) so remote peers can reach it; every management route is
+// admin-only and returns plaintext secrets, so it must never be public.
+
+// Public pull endpoint: a remote instance fetches the whole cookbook as the
+// same zip that GET /export produces, authenticated by X-Sync-Secret.
+router.get('/sync/pull', requireSyncSecret, async (_req, res) => {
+  try {
+    const archive = await buildExport();
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="cookbook-sync-${date}.zip"`);
+    res.send(archive);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Full sync config — inbound links (URL + secret) and outbound sources (status).
+router.get('/sync', ...requireCookbookAdmin, async (_req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+  try {
+    res.json(await getSyncConfig());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/sync/inbound', ...requireCookbookAdmin, async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+  try {
+    const token = await createInbound(req.body?.label);
+    res.status(201).json({ token: { ...token, url: buildPullUrl(req) } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/sync/inbound/:id', ...requireCookbookAdmin, async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+  try {
+    const removed = await deleteInbound(req.params.id);
+    if (!removed) return res.status(404).json({ error: 'Sync link not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/sync/outbound', ...requireCookbookAdmin, async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+  if (!`${req.body?.url || ''}`.trim()) return res.status(400).json({ error: 'A pull URL is required' });
+  try {
+    res.status(201).json({ source: await createOutbound(req.body || {}) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/sync/outbound/:id', ...requireCookbookAdmin, async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+  try {
+    const source = await updateOutbound(req.params.id, req.body || {});
+    if (!source) return res.status(404).json({ error: 'Sync source not found' });
+    res.json({ source });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/sync/outbound/:id', ...requireCookbookAdmin, async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+  try {
+    const removed = await deleteOutbound(req.params.id);
+    if (!removed) return res.status(404).json({ error: 'Sync source not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// "Sync now": pull + merge immediately. 502 when the pull/import itself failed.
+router.post('/sync/outbound/:id/run', ...requireCookbookAdmin, async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+  try {
+    const result = await runOutboundById(req.params.id, { manual: true });
+    if (result.status === 'error') return res.status(502).json(result);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Build the externally-reachable pull URL for a freshly-created inbound link.
+// Honors the proxy's forwarded host/proto (nginx or HA ingress in front).
+function buildPullUrl(req) {
+  const proto = (req.get('X-Forwarded-Proto') || req.protocol || 'https').split(',')[0].trim();
+  const host = req.get('X-Forwarded-Host') || req.get('Host') || '';
+  const ingress = (req.get('X-Ingress-Path') || '').replace(/\/+$/, '');
+  return `${proto}://${host}${ingress}/api/cookbook/sync/pull`;
 }
 
 export default router;

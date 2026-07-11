@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { Admin } from './pages/Admin';
+import { AdminCookbookSync } from './pages/AdminCookbookSync';
 import { Cookbook } from './pages/Cookbook';
 import { Icons } from './components/Icons';
 import { api } from './lib/api';
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/cookbook/import" element={page} />
           <Route path="/cookbook/:recipeId" element={page} />
           <Route path="/admin" element={<Admin me={me} />} />
+          <Route path="/admin/cookbook-sync" element={<AdminCookbookSync me={me} />} />
           <Route path="*" element={<Navigate to="/cookbook" replace />} />
         </Routes>
       </main>

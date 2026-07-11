@@ -215,6 +215,25 @@ export function Admin({ me }) {
 
         <div className="panel">
           <div className="panel__header">
+            <div className="panel__title">Recipe sync</div>
+            <div className="panel__meta">pull recipes between instances</div>
+          </div>
+          <div className="panel__body admin-transfer">
+            <p className="admin-transfer__hint">
+              Publish this cookbook for other instances to pull, or add other instances to copy
+              recipes from — on demand or on a schedule. Syncs merge by recipe id, so they update
+              in place instead of piling up duplicates.
+            </p>
+            <div className="admin-transfer__actions">
+              <Link className="btn" to="/admin/cookbook-sync">
+                <Icons.RefreshCw size={13} /> Open recipe sync
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel__header">
             <div className="panel__title">Cookbook access</div>
             <div className="panel__meta">who can view and add recipes</div>
           </div>
