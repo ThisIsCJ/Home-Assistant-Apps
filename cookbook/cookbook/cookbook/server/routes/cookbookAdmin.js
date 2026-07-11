@@ -56,16 +56,16 @@ router.put('/access', ...requireCookbookAdmin, async (req, res) => {
   }
 });
 
-// Download the entire cookbook (recipes + referenced images) as one JSON file.
+// Download the entire cookbook (recipes + referenced images) as one zip archive.
 router.get('/export', ...requireCookbookAdmin, async (_req, res) => {
   if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
 
   try {
     const archive = await buildExport();
     const date = new Date().toISOString().slice(0, 10);
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="cookbook-export-${date}.json"`);
-    res.send(JSON.stringify(archive));
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="cookbook-export-${date}.zip"`);
+    res.send(archive);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -83,15 +83,9 @@ router.post('/import', ...requireCookbookAdmin, (req, res) => {
     if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
     if (!req.file) return res.status(400).json({ error: 'No file provided' });
 
-    let payload;
     try {
-      payload = JSON.parse(req.file.buffer.toString('utf8'));
-    } catch {
-      return res.status(400).json({ error: 'File is not valid JSON' });
-    }
-
-    try {
-      const result = await importArchive(payload, req.user);
+      // importArchive sniffs the bytes — a v2 zip or a legacy v1 JSON archive.
+      const result = await importArchive(req.file.buffer, req.user);
       res.json({ ok: true, ...result });
     } catch (importErr) {
       res.status(importErr.status || 500).json({ error: importErr.message });

@@ -3,6 +3,16 @@
 A self-contained Home Assistant add-on version of the Cookbook module: a shared
 recipe organizer with web import, ingredient scaling, star ratings and comments.
 
+## Screenshots
+
+Browse, search, and filter the shared collection by category:
+
+![Browsing and searching recipes by category](../screenshots/search.png)
+
+It installs as a Home Assistant sidebar panel, served through ingress:
+
+![Cookbook entry in the Home Assistant sidebar](../screenshots/side-bar.png)
+
 ## Installation
 
 1. In Home Assistant go to **Settings → Add-ons → Add-on Store**.

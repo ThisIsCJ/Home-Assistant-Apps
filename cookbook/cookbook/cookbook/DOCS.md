@@ -21,9 +21,10 @@ of servings you want, and leave star ratings and comments.
   manage archived recipes. Deleting a recipe archives it rather than removing
   it; admins can restore archived recipes or permanently delete them.
 - **Backup & transfer** — from the Admin page, **Export cookbook** downloads
-  every recipe and its images as a single self-contained JSON file, and
-  **Import cookbook** loads such a file into any instance. Import is additive:
-  it never deletes or overwrites existing recipes (re-importing creates copies).
+  every recipe and its images as a single self-contained zip archive, and
+  **Import cookbook** loads such a file into any instance (older JSON exports are
+  still accepted). Import is additive: it never deletes or overwrites existing
+  recipes (re-importing creates copies).
 
 ## Requirements
 

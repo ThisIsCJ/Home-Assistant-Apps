@@ -126,7 +126,7 @@ export function Admin({ me }) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cookbook-export-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `cookbook-export-${new Date().toISOString().slice(0, 10)}.zip`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -186,9 +186,10 @@ export function Admin({ me }) {
             {transferError && <div className="inline-alert inline-alert--error">{transferError}</div>}
             {transferMessage && <div className="inline-alert inline-alert--success">{transferMessage}</div>}
             <p className="admin-transfer__hint">
-              Export downloads every recipe and its images as a single JSON file — use it for
+              Export downloads every recipe and its images as a single zip archive — use it for
               backups or to move recipes to another instance. Import adds the recipes from such a
-              file; it never deletes or overwrites what's already here.
+              file (older JSON exports still work too); it never deletes or overwrites what's
+              already here.
             </p>
             <div className="admin-transfer__actions">
               <button className="btn" onClick={exportData} disabled={exporting || importing}>
@@ -204,7 +205,7 @@ export function Admin({ me }) {
               <input
                 ref={importInputRef}
                 type="file"
-                accept="application/json,.json"
+                accept=".zip,application/zip,.json,application/json"
                 className="admin-transfer__file"
                 onChange={importData}
               />

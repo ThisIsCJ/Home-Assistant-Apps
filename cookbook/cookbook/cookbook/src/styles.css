@@ -3595,10 +3595,15 @@ table.data {
 }
 
 /* Recently-added / results grid — Samsung Fold-aware breakpoints.
-   - Base (above): Fold closed cover screen (~280px) and narrow phones → 1 column.
-   - >= 400px: Fold open inner screen (reports ~600–760px CSS px) → 3 columns.
+   The middle breakpoint sits at 600px, between the Fold's closed cover-screen
+   width (~400–500px CSS px) and its open inner-screen width (~650px+), so
+   "closed" stays 1 column and "open" gets 3. A lower value like 400px fails
+   because the closed cover screen is already wider than 400px. See
+   RESPONSIVE_GRID.md.
+   - Base (above): Fold closed cover screen and narrow phones → 1 column.
+   - >= 600px: Fold open inner screen → 3 columns.
    - >= 768px: tablets and desktops → 4 columns. */
-@media screen and (min-width: 400px) {
+@media screen and (min-width: 600px) {
   .cookbook-results {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
