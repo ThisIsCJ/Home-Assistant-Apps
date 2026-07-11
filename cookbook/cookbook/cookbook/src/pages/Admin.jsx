@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icons } from '../components/Icons';
 import { api } from '../lib/api';
@@ -18,6 +18,12 @@ export function Admin({ me }) {
   const [archivedError, setArchivedError] = useState('');
   const [archivedLoading, setArchivedLoading] = useState(true);
   const [busyRecipeId, setBusyRecipeId] = useState('');
+
+  const importInputRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [transferMessage, setTransferMessage] = useState('');
 
   useEffect(() => {
     if (!me.isAdmin) return;
@@ -111,6 +117,54 @@ export function Admin({ me }) {
     }
   };
 
+  const exportData = async () => {
+    setExporting(true);
+    setTransferError('');
+    setTransferMessage('');
+    try {
+      const blob = await api.download('/cookbook/admin/export');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `cookbook-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setTransferError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const importData = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // allow re-picking the same file later
+    if (!file) return;
+    if (!window.confirm(
+      `Import "${file.name}"? Its recipes and images are added to this cookbook. ` +
+      'Existing recipes are never overwritten — re-importing creates copies.'
+    )) return;
+
+    setImporting(true);
+    setTransferError('');
+    setTransferMessage('');
+    try {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      const res = await api.upload('/cookbook/admin/import', form);
+      setTransferMessage(
+        `Imported ${res.recipes} recipe${res.recipes === 1 ? '' : 's'} ` +
+        `and ${res.images} image${res.images === 1 ? '' : 's'}. Reload to see them.`
+      );
+    } catch (err) {
+      setTransferError(err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <>
       <div className="page__header">
@@ -123,6 +177,41 @@ export function Admin({ me }) {
       </div>
 
       <div className="admin-panels">
+        <div className="panel">
+          <div className="panel__header">
+            <div className="panel__title">Backup &amp; transfer</div>
+            <div className="panel__meta">export or import the whole cookbook</div>
+          </div>
+          <div className="panel__body admin-transfer">
+            {transferError && <div className="inline-alert inline-alert--error">{transferError}</div>}
+            {transferMessage && <div className="inline-alert inline-alert--success">{transferMessage}</div>}
+            <p className="admin-transfer__hint">
+              Export downloads every recipe and its images as a single JSON file — use it for
+              backups or to move recipes to another instance. Import adds the recipes from such a
+              file; it never deletes or overwrites what's already here.
+            </p>
+            <div className="admin-transfer__actions">
+              <button className="btn" onClick={exportData} disabled={exporting || importing}>
+                <Icons.Download size={13} /> {exporting ? 'Exporting…' : 'Export cookbook'}
+              </button>
+              <button
+                className="btn"
+                onClick={() => importInputRef.current?.click()}
+                disabled={exporting || importing}
+              >
+                <Icons.Upload size={13} /> {importing ? 'Importing…' : 'Import cookbook'}
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="admin-transfer__file"
+                onChange={importData}
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="panel">
           <div className="panel__header">
             <div className="panel__title">Cookbook access</div>

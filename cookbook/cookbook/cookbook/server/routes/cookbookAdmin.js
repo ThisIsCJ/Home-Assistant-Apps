@@ -1,12 +1,21 @@
 import { ObjectId } from 'mongodb';
 import { Router } from 'express';
+import multer from 'multer';
 import { ingressUser } from '../middleware/ingressAuth.js';
 import { getAccessConfig, setAccessConfig, listKnownUsers, recordUser, requireAdmin } from '../middleware/access.js';
+import { buildExport, importArchive } from '../lib/transfer.js';
 import { getDb, isConnected } from '../db.js';
 
 const router = Router();
 const requireCookbookAdmin = [ingressUser, recordUser, requireAdmin];
 const COLLECTION = 'cookbookRecipes';
+
+// Archives carry image bytes inline, so they can be large (~13 MB for ~50
+// photos). Held in memory only long enough to parse — not written to disk.
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 200 * 1024 * 1024 },
+});
 
 router.get('/users', ...requireCookbookAdmin, async (_req, res) => {
   if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
@@ -45,6 +54,49 @@ router.put('/access', ...requireCookbookAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Download the entire cookbook (recipes + referenced images) as one JSON file.
+router.get('/export', ...requireCookbookAdmin, async (_req, res) => {
+  if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+
+  try {
+    const archive = await buildExport();
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="cookbook-export-${date}.json"`);
+    res.send(JSON.stringify(archive));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Load a previously exported archive. Additive: existing recipes and images are
+// never deleted or overwritten. Sent as a multipart upload (not a JSON body) to
+// sidestep the Express JSON body-size limit.
+router.post('/import', ...requireCookbookAdmin, (req, res) => {
+  importUpload.single('file')(req, res, async (err) => {
+    if (err) {
+      const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({ error: err.message });
+    }
+    if (!isConnected()) return res.status(503).json({ error: 'Database not connected' });
+    if (!req.file) return res.status(400).json({ error: 'No file provided' });
+
+    let payload;
+    try {
+      payload = JSON.parse(req.file.buffer.toString('utf8'));
+    } catch {
+      return res.status(400).json({ error: 'File is not valid JSON' });
+    }
+
+    try {
+      const result = await importArchive(payload, req.user);
+      res.json({ ok: true, ...result });
+    } catch (importErr) {
+      res.status(importErr.status || 500).json({ error: importErr.message });
+    }
+  });
 });
 
 router.get('/archived', ...requireCookbookAdmin, async (_req, res) => {

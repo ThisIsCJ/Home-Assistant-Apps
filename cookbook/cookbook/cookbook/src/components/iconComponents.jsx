@@ -36,6 +36,7 @@ export const Monitor = (p) => <Icon {...p}><rect x="2" y="3" width="20" height="
 export const Sliders = (p) => <Icon {...p}><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" /><circle cx="9" cy="6" r="2" fill="var(--panel)" /><circle cx="15" cy="12" r="2" fill="var(--panel)" /><circle cx="7" cy="18" r="2" fill="var(--panel)" /></Icon>;
 export const Plus = (p) => <Icon {...p} sw={2}><path d="M12 5v14" /><path d="M5 12h14" /></Icon>;
 export const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /><path d="M12 15V3" /></Icon>;
+export const Upload = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m17 8-5-5-5 5" /><path d="M12 3v12" /></Icon>;
 export const ArrowUp = (p) => <Icon {...p} sw={2}><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></Icon>;
 export const ArrowDown = (p) => <Icon {...p} sw={2}><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></Icon>;
 export const X = (p) => <Icon {...p} sw={2}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></Icon>;

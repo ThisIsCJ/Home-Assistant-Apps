@@ -1912,7 +1912,9 @@ table.data {
 }
 .cookbook-results {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* Mobile-first: Fold closed / narrow phones get a single column.
+     The 400px and 768px breakpoints below widen it. */
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 .cookbook-result {
@@ -2463,6 +2465,30 @@ table.data {
   color: oklch(0.48 0.16 25);
   border: 1px solid oklch(0.58 0.17 25 / 0.2);
 }
+.inline-alert--success {
+  background: oklch(0.62 0.14 150 / 0.1);
+  color: oklch(0.46 0.13 150);
+  border: 1px solid oklch(0.62 0.14 150 / 0.25);
+}
+.admin-transfer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.admin-transfer__hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+.admin-transfer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-transfer__file {
+  display: none;
+}
 .access-list {
   display: flex;
   flex-direction: column;
@@ -2838,8 +2864,7 @@ table.data {
   .cookbook-categories {
     display: none;
   }
-  .cookbook-categories,
-  .cookbook-results {
+  .cookbook-categories {
     grid-template-columns: 1fr;
   }
   .cookbook-form__hero {
@@ -3569,13 +3594,17 @@ table.data {
   transition: opacity .15s;
 }
 
-/* Tablet / unfolded-foldable band. The max-width:860px block collapses the
-   recipe grid to a single column for phones, but a Samsung Fold (and small
-   tablets) report a CSS viewport around 650–800px and should show rows of 3.
-   The lower bound (540px) sits above phone portrait widths (~430px) and below
-   any unfolded width, so real phones stay single-column. */
-@media (min-width: 540px) and (max-width: 860px) {
+/* Recently-added / results grid — Samsung Fold-aware breakpoints.
+   - Base (above): Fold closed cover screen (~280px) and narrow phones → 1 column.
+   - >= 400px: Fold open inner screen (reports ~600–760px CSS px) → 3 columns.
+   - >= 768px: tablets and desktops → 4 columns. */
+@media screen and (min-width: 400px) {
   .cookbook-results {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media screen and (min-width: 768px) {
+  .cookbook-results {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

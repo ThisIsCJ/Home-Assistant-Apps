@@ -33,4 +33,27 @@ export const api = {
   put: (path, body) => apiFetch(path, { method: 'PUT', body: JSON.stringify(body) }),
   post: (path, body) => apiFetch(path, { method: 'POST', body: JSON.stringify(body) }),
   delete: (path) => apiFetch(path, { method: 'DELETE' }),
+
+  // Download an endpoint's response as a Blob (e.g. a file export). Throws on
+  // non-2xx, reading the JSON error body when there is one.
+  download: async (path) => {
+    const res = await fetch(`${ingressBase()}/api${path}`, { method: 'GET' });
+    if (!res.ok) throw await responseError(res);
+    return res.blob();
+  },
+
+  // POST multipart form data (e.g. a file upload). The browser sets the
+  // Content-Type (with boundary) itself, so none is provided here.
+  upload: async (path, formData) => {
+    const res = await fetch(`${ingressBase()}/api${path}`, { method: 'POST', body: formData });
+    if (!res.ok) throw await responseError(res);
+    return res.json();
+  },
 };
+
+async function responseError(res) {
+  const body = await res.json().catch(() => ({}));
+  const err = new Error(body.error || `API error ${res.status}`);
+  err.status = res.status;
+  return err;
+}
