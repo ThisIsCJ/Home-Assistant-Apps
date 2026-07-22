@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { BUILD_PATH } from './config.js';
 import { safeJoin, userSlug } from './paths.js';
-import { repoDir, draftDir } from './overlay.js';
+import { repoDir, draftDir, getDraft } from './overlay.js';
 
 const BUILD_TIMEOUT = 10 * 60_000;
 
@@ -31,6 +31,12 @@ export function runBuild(site, username) {
   });
   const dd = draftDir(site, username);
   if (fs.existsSync(dd)) fs.cpSync(dd, ws, { recursive: true });
+
+  // Apply the draft's deletions so tombstoned files don't reappear in the build.
+  for (const rel of getDraft(site, username)?.deletions || []) {
+    const abs = safeJoin(ws, rel);
+    if (abs && fs.existsSync(abs)) fs.rmSync(abs, { force: true });
+  }
 
   return new Promise((resolve) => {
     execFile('bash', ['-c', site.build_cmd], {

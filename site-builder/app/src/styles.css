@@ -1915,12 +1915,69 @@ html[data-size="xl"] { font-size: 22px; }
 .editor-file-item.active { background: var(--accent-tint-2, rgba(59,130,246,0.12)); color: var(--accent2);
                            box-shadow: inset 2px 0 0 var(--accent); }
 
+.editor-file-item { flex: 1; min-width: 0; }
+
 .editor-file-draft-dot {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--orange);
   box-shadow: 0 0 6px var(--orange);
   flex-shrink: 0;
 }
+
+/* File row: the file/folder button plus its actions menu. */
+.editor-file-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+.editor-file-row:hover { background: var(--accent-tint-1, rgba(59,130,246,0.06)); }
+
+.editor-file-menu-btn {
+  flex-shrink: 0;
+  padding: 3px 4px;
+  margin-right: 4px;
+  opacity: 0;
+  border-color: transparent;
+}
+.editor-file-row:hover .editor-file-menu-btn,
+.editor-file-row.menu-open .editor-file-menu-btn { opacity: 1; }
+
+.editor-file-menu {
+  position: absolute;
+  top: 100%;
+  right: 4px;
+  z-index: 30;
+  min-width: 130px;
+  margin-top: 2px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.editor-file-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.74rem;
+  text-align: left;
+  cursor: pointer;
+}
+.editor-file-menu button:hover { background: var(--accent-tint-1, rgba(59,130,246,0.1)); }
+.editor-file-menu button.danger { color: var(--red); }
+.editor-file-menu button.danger:hover { background: rgba(239, 68, 68, 0.12); }
+
+.editor-menu-backdrop { position: fixed; inset: 0; z-index: 20; }
 
 .editor-stage {
   flex: 1;

@@ -314,6 +314,73 @@ function BackgroundModal({ siteId, filePath, picked, onPickElement, onApply, onC
   );
 }
 
+// Path-entry modal for the file-management actions (new file, new folder,
+// rename, move). All four are a single text field for a site-relative path.
+const OP_META = {
+  'new-file':   { title: 'New file',   label: 'File path',   icon: 'FilePlus',   verb: 'Create', placeholder: 'about.html' },
+  'new-folder': { title: 'New folder', label: 'Folder path', icon: 'FolderPlus', verb: 'Create', placeholder: 'blog/posts' },
+  'rename':     { title: 'Rename',     label: 'New name',    icon: 'Edit',       verb: 'Rename', placeholder: '' },
+  'move':       { title: 'Move',       label: 'New path',    icon: 'Move',       verb: 'Move',   placeholder: '' },
+};
+
+function FileOpModal({ op, onClose, onSubmit }) {
+  const meta = OP_META[op.kind];
+  const [value, setValue] = useState(op.initial || '');
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef(null);
+  const Icon = Icons[meta.icon];
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    // Rename → preselect the basename; move → preselect the folder portion.
+    const v = el.value;
+    const slash = v.lastIndexOf('/');
+    if (op.kind === 'rename' && slash >= 0) el.setSelectionRange(slash + 1, v.length);
+    else if (op.kind === 'move' && slash >= 0) el.setSelectionRange(0, slash + 1);
+    else el.select();
+  }, [op.kind]);
+
+  const submit = async () => {
+    const v = value.trim();
+    if (!v || busy) return;
+    setBusy(true);
+    const ok = await onSubmit(v);
+    if (!ok) setBusy(false);   // leave the modal open on failure
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 440 }}>
+        <div className="modal-header">
+          <span className="modal-title">{meta.title}</span>
+          <button className="icon-btn" onClick={onClose}><Icons.X size={14} /></button>
+        </div>
+        <div className="form-section">
+          <div className="input-group">
+            <label className="input-label">{meta.label}</label>
+            <input ref={inputRef} className="input mono" value={value} placeholder={meta.placeholder}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }} />
+            <div className="input-hint">
+              {op.kind === 'new-folder'
+                ? 'Empty folders live in your draft until they contain a file — Git can’t commit an empty folder.'
+                : 'A path relative to the site root. Use “/” for subfolders.'}
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-pri" disabled={!value.trim() || busy} onClick={submit}>
+            {busy ? <Icons.Loader size={13} className="spin" /> : <Icon size={13} />} {meta.verb}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Hidden-input color button for the format bar (text / highlight color).
 function ColorButton({ icon: Icon, title, onPick, underline }) {
   const ref = useRef(null);
@@ -406,6 +473,9 @@ export function SiteEditor() {
   const [showPush, setShowPush] = useState(false);
   const [imageModal, setImageModal] = useState(null);   // { mode: 'replace'|'insert', imgId?, src? }
   const [bgModal, setBgModal] = useState(null);          // { picking: bool, picked: string|null }
+  const [fileOp, setFileOp] = useState(null);            // { kind, initial, target } — file-management modal
+  const [menuFor, setMenuFor] = useState(null);          // path whose row action menu is open
+  const [dirContext, setDirContext] = useState('');      // folder to prefill in new-file/new-folder
   const [frameNonce, setFrameNonce] = useState(0);
   const iframeRef = useRef(null);
   const htmlRequests = useRef(new Map());
@@ -571,8 +641,67 @@ export function SiteEditor() {
     setBgModal({ picking: false, picked: bgModal?.picked ?? null });
   };
 
+  // ── File-management operations (draft-level) ──────────────────────────────
+  const NEW_HTML = '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="utf-8">\n  <title>New page</title>\n</head>\n<body>\n  <h1>New page</h1>\n</body>\n</html>\n';
+
+  const reloadFiles = async () => { await refreshSites(); await loadFiles(); setFrameNonce((n) => n + 1); };
+
+  const openOp = (kind, f) => { setMenuFor(null); setFileOp({ kind, initial: f.path, target: f.path }); };
+  const openNew = (kind) => setFileOp({ kind, initial: dirContext ? `${dirContext}/` : '' });
+
+  const createFileFront = async (path) => {
+    try {
+      await api.post(`/sites/${siteId}/file`, { path, content: /\.html?$/i.test(path) ? NEW_HTML : '' });
+      setFileOp(null);
+      setDirty(false);
+      await reloadFiles();
+      setCurrent(path); setMode('edit'); setView(/\.html?$/i.test(path) ? 'visual' : 'code');
+      toast('success', `Created ${path}`);
+      return true;
+    } catch (err) { toast('error', err.message); return false; }
+  };
+
+  const createFolderFront = async (path) => {
+    try {
+      await api.post(`/sites/${siteId}/folder`, { path });
+      setFileOp(null);
+      await reloadFiles();
+      toast('success', `Created folder ${path}`);
+      return true;
+    } catch (err) { toast('error', err.message); return false; }
+  };
+
+  const moveEntryFront = async (from, to) => {
+    try {
+      // Preserve unsaved edits to the file being moved before it changes path.
+      if (dirty && from === current) { const ok = await saveDraft(); if (!ok) return false; }
+      await api.post(`/sites/${siteId}/move`, { from, to });
+      setFileOp(null);
+      setDirty(false);
+      const next = current === from ? to
+        : (current && current.startsWith(`${from}/`)) ? `${to}${current.slice(from.length)}` : current;
+      await reloadFiles();
+      if (next !== current) { setCurrent(next); setMode('edit'); setView('visual'); }
+      toast('success', `Moved to ${to}`);
+      return true;
+    } catch (err) { toast('error', err.message); return false; }
+  };
+
+  const deleteEntryFront = async (path) => {
+    setMenuFor(null);
+    const affectsCurrent = path === current || (current && current.startsWith(`${path}/`));
+    if (!window.confirm(`Delete ${path}?\n\nIt is removed from your draft and, when you push, from GitHub.`)) return;
+    try {
+      await api.del(`/sites/${siteId}/entry?path=${encodeURIComponent(path)}`);
+      if (affectsCurrent) { setDirty(false); setMode('edit'); setView('visual'); }
+      if (dirContext === path || (dirContext && dirContext.startsWith(`${path}/`))) setDirContext('');
+      await reloadFiles();
+      toast('success', `Deleted ${path}`);
+    } catch (err) { toast('error', err.message); }
+  };
+
   const visibleFiles = useMemo(
-    () => files.filter((f) => (f.html || f.text) && f.path.toLowerCase().includes(filter.toLowerCase())),
+    () => files.filter((f) => (f.dir || f.html || f.text) && f.path.toLowerCase().includes(filter.toLowerCase())),
     [files, filter],
   );
 
@@ -696,19 +825,41 @@ export function SiteEditor() {
         <div className="editor-files card">
           <div className="card-header">
             <span className="card-title">Pages &amp; Files</span>
+            <div className="flex items-center gap-1">
+              <button className="icon-btn" title="New file" onClick={() => openNew('new-file')}>
+                <Icons.FilePlus size={14} />
+              </button>
+              <button className="icon-btn" title="New folder" onClick={() => openNew('new-folder')}>
+                <Icons.FolderPlus size={14} />
+              </button>
+            </div>
           </div>
           <div className="editor-files-search">
             <input className="input" placeholder="Filter…" value={filter} onChange={(e) => setFilter(e.target.value)} />
           </div>
           <div className="editor-files-list">
             {visibleFiles.map((f) => (
-              <button key={f.path}
-                className={`editor-file-item${f.path === current ? ' active' : ''}`}
-                onClick={() => switchFile(f.path)}>
-                {f.html ? <Icons.FileText size={13} /> : <Icons.Code size={13} />}
-                <span className="truncate" style={{ flex: 1, textAlign: 'left' }}>{f.path}</span>
-                {f.draft && <span className="editor-file-draft-dot" title="Drafted" />}
-              </button>
+              <div key={f.path} className={`editor-file-row${menuFor === f.path ? ' menu-open' : ''}`}>
+                <button
+                  className={`editor-file-item${f.path === current ? ' active' : ''}`}
+                  onClick={() => f.dir ? setDirContext(dirContext === f.path ? '' : f.path) : switchFile(f.path)}
+                  title={f.path}>
+                  {f.dir ? <Icons.Folder size={13} /> : f.html ? <Icons.FileText size={13} /> : <Icons.Code size={13} />}
+                  <span className="truncate" style={{ flex: 1, textAlign: 'left' }}>{f.path}</span>
+                  {f.draft && !f.dir && <span className="editor-file-draft-dot" title="Drafted" />}
+                </button>
+                <button className="icon-btn editor-file-menu-btn" title="File actions"
+                  onClick={() => setMenuFor(menuFor === f.path ? null : f.path)}>
+                  <Icons.MoreVertical size={13} />
+                </button>
+                {menuFor === f.path && (
+                  <div className="editor-file-menu">
+                    <button onClick={() => openOp('rename', f)}><Icons.Edit size={12} /> Rename</button>
+                    <button onClick={() => openOp('move', f)}><Icons.Move size={12} /> Move</button>
+                    <button className="danger" onClick={() => deleteEntryFront(f.path)}><Icons.Trash size={12} /> Delete</button>
+                  </div>
+                )}
+              </div>
             ))}
             {visibleFiles.length === 0 && <div className="text-sm text-muted" style={{ padding: 10 }}>No editable files</div>}
           </div>
@@ -742,6 +893,17 @@ export function SiteEditor() {
           )}
         </div>
       </div>
+
+      {menuFor && <div className="editor-menu-backdrop" onClick={() => setMenuFor(null)} />}
+
+      {fileOp && (
+        <FileOpModal op={fileOp} onClose={() => setFileOp(null)}
+          onSubmit={(value) => {
+            if (fileOp.kind === 'new-file') return createFileFront(value);
+            if (fileOp.kind === 'new-folder') return createFolderFront(value);
+            return moveEntryFront(fileOp.target, value); // rename & move
+          }} />
+      )}
 
       {showPush && (
         <PushModal site={site} onClose={() => setShowPush(false)}

@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import db, { now } from '../db.js';
 import { requireSite } from '../middleware/auth.js';
-import { listFiles, resolveFile, isText, isHtml, getDraft, saveDraftFile, discardDraft, repoDir, draftDir } from '../lib/overlay.js';
+import { listFiles, resolveFile, isText, isHtml, getDraft, saveDraftFile, discardDraft,
+         createDraftFile, createDraftFolder, deleteEntry, moveEntry, repoDir, draftDir } from '../lib/overlay.js';
 import { safeJoin } from '../lib/paths.js';
 import { head } from '../lib/git.js';
 
@@ -42,6 +43,61 @@ router.put('/file', requireSite, async (req, res) => {
   try {
     const baseCommit = await head(repoDir(req.site)).catch(() => null);
     saveDraftFile(req.site, req.user.username, rel, content, baseCommit);
+    res.json({ ok: true, draft: getDraft(req.site, req.user.username) });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Create a new (empty) text file in the user's draft.
+router.post('/file', requireSite, async (req, res) => {
+  const rel = String(req.body?.path || '').trim();
+  const content = typeof req.body?.content === 'string' ? req.body.content : '';
+  if (!rel) return res.status(400).json({ message: 'A file path is required' });
+  if (!isText(rel)) return res.status(400).json({ message: 'Only text files can be created here' });
+  try {
+    const baseCommit = await head(repoDir(req.site)).catch(() => null);
+    createDraftFile(req.site, req.user.username, rel, content, baseCommit);
+    res.status(201).json({ ok: true, path: rel, draft: getDraft(req.site, req.user.username) });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Create a new folder in the user's draft.
+router.post('/folder', requireSite, (req, res) => {
+  const rel = String(req.body?.path || '').trim();
+  if (!rel) return res.status(400).json({ message: 'A folder path is required' });
+  try {
+    createDraftFolder(req.site, req.user.username, rel);
+    res.status(201).json({ ok: true, path: rel });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Rename or move a file or folder within the user's draft.
+router.post('/move', requireSite, async (req, res) => {
+  const from = String(req.body?.from || '').trim();
+  const to = String(req.body?.to || '').trim();
+  if (!from || !to) return res.status(400).json({ message: 'from and to are required' });
+  try {
+    const baseCommit = await head(repoDir(req.site)).catch(() => null);
+    const result = moveEntry(req.site, req.user.username, from, to, baseCommit);
+    res.json({ ok: true, ...result, draft: getDraft(req.site, req.user.username) });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete a file or folder from the user's draft (repo files are tombstoned so
+// the deletion is committed on push).
+router.delete('/entry', requireSite, async (req, res) => {
+  const rel = String(req.query.path || '').trim();
+  if (!rel) return res.status(400).json({ message: 'A path is required' });
+  try {
+    const baseCommit = await head(repoDir(req.site)).catch(() => null);
+    deleteEntry(req.site, req.user.username, rel, baseCommit);
     res.json({ ok: true, draft: getDraft(req.site, req.user.username) });
   } catch (err) {
     res.status(400).json({ message: err.message });

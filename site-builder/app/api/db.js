@@ -41,6 +41,7 @@ db.exec(`
     site_id     TEXT NOT NULL,
     user        TEXT NOT NULL,
     files       TEXT NOT NULL DEFAULT '[]',
+    deletions   TEXT NOT NULL DEFAULT '[]',
     base_commit TEXT,
     saved_at    TEXT NOT NULL,
     PRIMARY KEY (site_id, user)
@@ -57,6 +58,11 @@ db.exec(`
     created_at  TEXT NOT NULL
   );
 `);
+
+// Migrations for databases created before a column existed.
+if (!db.prepare("PRAGMA table_info(drafts)").all().some((c) => c.name === 'deletions')) {
+  db.exec("ALTER TABLE drafts ADD COLUMN deletions TEXT NOT NULL DEFAULT '[]'");
+}
 
 export default db;
 

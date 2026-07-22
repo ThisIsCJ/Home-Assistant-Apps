@@ -41,7 +41,7 @@ router.post('/push', requireSite, ensureReady, requireSitePermission('user_can_p
   const username = req.user.username;
 
   const draft = getDraft(site, username);
-  if (!draft || draft.files.length === 0) {
+  if (!draft || (draft.files.length === 0 && (draft.deletions?.length ?? 0) === 0)) {
     return res.status(400).json({ message: 'No draft changes to push' });
   }
 
@@ -55,7 +55,8 @@ router.post('/push', requireSite, ensureReady, requireSitePermission('user_can_p
     // the draft was started?
     if (!force) {
       const upstreamChanged = await changedBetween(cwd, draft.base_commit, currentHead);
-      const overlap = draft.files.filter((f) => upstreamChanged.includes(f));
+      const touched = [...new Set([...draft.files, ...(draft.deletions || [])])];
+      const overlap = touched.filter((f) => upstreamChanged.includes(f));
       if (overlap.length > 0) {
         return res.status(409).json({
           message: 'These files also changed on GitHub since you started editing',
@@ -87,7 +88,7 @@ router.post('/push', requireSite, ensureReady, requireSitePermission('user_can_p
       return res.status(400).json({ message: 'Draft is identical to the current site — nothing to push' });
     }
     db.prepare('INSERT INTO history (site_id, commit_hash, message, author, files, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(site.id, null, commitMessage, username, JSON.stringify(draft.files), 'failed', now());
+      .run(site.id, null, commitMessage, username, JSON.stringify([...draft.files, ...(draft.deletions || [])]), 'failed', now());
     res.status(502).json({ message: `Push failed: ${err.message}` });
   }
 });
